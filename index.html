@@ -32,7 +32,7 @@
   .view { display: none; min-height: 100vh; }
   .view.active { display: flex; flex-direction: column; }
 
-  /* ââ LANDING VIEW ââ */
+  /* ── LANDING VIEW ── */
   #landing {
     align-items: flex-start;
     justify-content: center;
@@ -86,8 +86,20 @@
     margin-bottom: 1.5rem;
     line-height: 1.5;
   }
+  /* Highlight the vote card on mobile — it's what 95% of audience sees */
+  .action-card.vote-card {
+    border-left-color: var(--quetzal-bright);
+  }
+  .action-card .step-hint {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: rgba(245,245,220,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+  }
 
-  /* ââ FORM ELEMENTS ââ */
+  /* ── FORM ELEMENTS ── */
   input[type="text"], input[type="number"] {
     background: rgba(245,245,220,0.08);
     border: 1px solid var(--quetzal);
@@ -103,11 +115,13 @@
     border-color: var(--quetzal-bright);
   }
   .code-input {
-    font-size: 2rem !important;
+    font-size: 2.4rem !important;
     letter-spacing: 0.5em;
     text-align: center;
     text-transform: uppercase;
-    max-width: 220px;
+    max-width: 260px;
+    padding: 1rem 1.2rem !important;
+    border-width: 2px;
   }
 
   button, .btn {
@@ -140,7 +154,122 @@
   .btn-danger:hover { background: #d42a45; }
   .btn-small { padding: 0.5rem 1rem; font-size: 0.75rem; }
 
-  /* ââ PRESENTER VIEW ââ */
+  /* ── PRESENTER LOBBY (the hero join screen) ── */
+  #presenter-lobby {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 3vh 4vw;
+    text-align: center;
+  }
+  .lobby-instruction {
+    font-family: var(--font-clue);
+    font-size: clamp(1rem, 2vw, 1.4rem);
+    color: var(--quetzal-bright);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+  .lobby-qr-wrap {
+    background: #fff;
+    padding: 20px;
+    display: inline-block;
+    margin-bottom: 2rem;
+    box-shadow: 0 0 60px rgba(0,168,150,0.15);
+  }
+  .lobby-qr-wrap canvas, .lobby-qr-wrap img {
+    display: block;
+  }
+  .lobby-room-code {
+    font-family: var(--font-clue);
+    font-size: clamp(5rem, 12vw, 10rem);
+    font-weight: 700;
+    color: var(--ecru-wool);
+    letter-spacing: 0.25em;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .lobby-room-label {
+    font-family: var(--font-clue);
+    font-size: 0.9rem;
+    color: rgba(245,245,220,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 2rem;
+  }
+  .lobby-url {
+    font-family: var(--font-clue);
+    font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+    color: var(--quetzal-bright);
+    margin-bottom: 0.5rem;
+    word-break: break-all;
+  }
+  .lobby-copy-btn {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: rgba(245,245,220,0.4);
+    background: none;
+    border: 1px solid rgba(245,245,220,0.15);
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    transition: all 0.2s;
+  }
+  .lobby-copy-btn:hover {
+    border-color: var(--quetzal-bright);
+    color: var(--quetzal-bright);
+  }
+  .lobby-participants {
+    font-family: var(--font-verdict);
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    color: var(--ecru-wool);
+    line-height: 1;
+  }
+  .lobby-participants-label {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: rgba(245,245,220,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 2.5rem;
+  }
+  .lobby-start-btn {
+    font-family: var(--font-clue);
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 1.1rem 3rem;
+    background: var(--quetzal);
+    color: var(--ecru-wool);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .lobby-start-btn:hover {
+    background: var(--quetzal-bright);
+  }
+  /* Pulse dot for lobby */
+  .lobby-pulse {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: var(--quetzal-bright);
+    border-radius: 50%;
+    animation: lobbyPulse 2s ease-in-out infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+  @keyframes lobbyPulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* ── PRESENTER VIEW (during questions) ── */
   #presenter {
     padding: 0;
   }
@@ -148,30 +277,49 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.2rem 3rem;
+    padding: 1rem 3rem;
     border-bottom: 1px solid rgba(0,104,94,0.3);
     flex-shrink: 0;
+    background: rgba(0,104,94,0.08);
   }
   .presenter-header .room-info {
     font-family: var(--font-clue);
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     color: var(--quetzal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
   .presenter-header .room-code-display {
-    font-size: 1.4rem;
+    font-family: var(--font-clue);
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
     font-weight: 700;
     letter-spacing: 0.3em;
     color: var(--ecru-wool);
+  }
+  .presenter-header .header-qr {
+    width: 60px;
+    height: 60px;
+    background: #fff;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .presenter-header .header-qr canvas,
+  .presenter-header .header-qr img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
   }
   .presenter-header .participant-count {
     font-family: var(--font-clue);
     font-size: 0.85rem;
     color: var(--quetzal-bright);
+    text-align: right;
   }
   .presenter-header .participant-count span {
     color: var(--ecru-wool);
-    font-size: 1.1rem;
+    font-size: 1.4rem;
     font-weight: 700;
+    display: block;
   }
 
   .presenter-body {
@@ -200,7 +348,7 @@
     max-width: 80%;
   }
 
-  /* ââ RESULTS DISPLAY ââ */
+  /* ── RESULTS DISPLAY ── */
   .results-container {
     width: 100%;
     max-width: 800px;
@@ -339,7 +487,7 @@
     margin-top: 1rem;
   }
 
-  /* ââ SETUP VIEW (poll creation) ââ */
+  /* ── SETUP VIEW (poll creation) ── */
   #setup {
     padding: 4vh 8vw;
     align-items: flex-start;
@@ -444,7 +592,7 @@
     margin-top: 0.25rem;
   }
 
-  /* ââ AUDIENCE VIEW ââ */
+  /* ── AUDIENCE VIEW ── */
   #audience {
     padding: 3vh 6vw;
     align-items: center;
@@ -488,10 +636,16 @@
     transition: all 0.2s;
     text-align: left;
     width: 100%;
+    /* Better touch target */
+    min-height: 56px;
+    -webkit-tap-highlight-color: rgba(0,168,150,0.2);
   }
   .vote-option:hover {
     border-left-color: var(--quetzal-bright);
     background: rgba(245,245,220,0.1);
+  }
+  .vote-option:active {
+    background: rgba(0,168,150,0.2);
   }
   .vote-option.selected {
     border-color: var(--quetzal-bright);
@@ -516,23 +670,27 @@
     margin-bottom: 1rem;
   }
   .rating-btn {
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
     background: var(--card-bg);
     border: 2px solid var(--quetzal);
     color: var(--ecru-wool);
     font-family: var(--font-verdict);
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    -webkit-tap-highlight-color: rgba(0,168,150,0.2);
   }
   .rating-btn:hover {
     border-color: var(--quetzal-bright);
     background: rgba(0,168,150,0.1);
+  }
+  .rating-btn:active {
+    background: rgba(0,168,150,0.25);
   }
   .rating-btn.selected {
     background: var(--quetzal-bright);
@@ -553,7 +711,7 @@
     padding: 2rem;
   }
   .voted-confirmation .check {
-    font-size: 3rem;
+    font-size: 4rem;
     color: var(--quetzal-bright);
     margin-bottom: 1rem;
   }
@@ -572,8 +730,39 @@
     font-size: 0.9rem;
     color: rgba(245,245,220,0.4);
   }
+  .audience-waiting .waiting-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+  }
+  .audience-connected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0,168,150,0.12);
+    border: 1px solid rgba(0,168,150,0.3);
+    padding: 0.4rem 1rem;
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    color: var(--quetzal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.5rem;
+  }
+  .audience-connected-badge .green-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--quetzal-bright);
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
 
-  /* ââ RESULTS EXPORT VIEW ââ */
+  /* ── RESULTS EXPORT VIEW ── */
   #results-view {
     padding: 4vh 8vw;
     align-items: flex-start;
@@ -627,7 +816,7 @@
     border-bottom: 1px solid rgba(245,245,220,0.06);
   }
 
-  /* ââ CONFIG MISSING BANNER ââ */
+  /* ── CONFIG MISSING BANNER ── */
   .config-banner {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -642,17 +831,20 @@
   }
   .config-banner.show { display: block; }
 
-  /* ââ RESPONSIVE ââ */
+  /* ── RESPONSIVE ── */
   @media (max-width: 600px) {
     #landing { padding: 6vh 6vw; }
-    .landing-actions { flex-direction: column; gap: 1.5rem; }
+    .landing-actions { flex-direction: column-reverse; gap: 1.5rem; }
     .action-card { max-width: 100%; }
-    .presenter-header { padding: 1rem 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+    .presenter-header { padding: 0.75rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .presenter-header .header-qr { width: 48px; height: 48px; }
     .presenter-body { padding: 3vh 5vw; }
     .question-text { max-width: 100%; }
     .result-label { min-width: 100px; font-size: 0.9rem; }
-    .rating-btn { width: 44px; height: 44px; font-size: 1.1rem; }
+    .rating-btn { width: 52px; height: 52px; font-size: 1.2rem; }
     #setup { padding: 3vh 5vw; }
+    .lobby-qr-wrap { padding: 12px; }
+    .vote-option { padding: 1rem 1.2rem; font-size: 1rem; }
   }
 </style>
 </head>
@@ -662,30 +854,32 @@
   Firebase not configured. Open this file and add your Firebase config to the FIREBASE_CONFIG object.
 </div>
 
-<!-- âââââââââââ LANDING âââââââââââ -->
+<!-- ═══════════ LANDING ═══════════ -->
 <div id="landing" class="view active">
   <div class="brand-mark">Live Poll</div>
   <h1>What does the room think?</h1>
   <p class="subtitle">Real-time polling for presentations and classrooms. No accounts, no downloads.</p>
   <div class="landing-actions">
     <div class="action-card">
-      <h2>Present</h2>
-      <p>Create polls and display live results on your screen.</p>
+      <div class="step-hint">Presenter</div>
+      <h2>Create Polls</h2>
+      <p>Build your questions and launch a live session. Results display in real time.</p>
       <button class="btn btn-primary" onclick="showView('setup')">Create Session</button>
     </div>
-    <div class="action-card">
-      <h2>Vote</h2>
-      <p>Enter the room code shown on the presenter's screen.</p>
-      <input type="text" id="join-code" class="code-input" placeholder="CODE" maxlength="4" autocomplete="off">
+    <div class="action-card vote-card">
+      <div class="step-hint">Audience</div>
+      <h2>Join &amp; Vote</h2>
+      <p>Enter the 4-character code shown on the presenter's screen.</p>
+      <input type="text" id="join-code" class="code-input" placeholder="_ _ _ _" maxlength="4" autocomplete="off" inputmode="text" autofocus>
       <div style="margin-top:1rem;">
-        <button class="btn btn-primary" onclick="joinSession()">Join</button>
+        <button class="btn btn-primary" onclick="joinSession()" style="width:100%;max-width:260px;padding:1rem;">Join Session</button>
       </div>
       <p id="join-error" style="color:var(--valentino);font-family:var(--font-clue);font-size:0.8rem;margin-top:0.5rem;display:none;"></p>
     </div>
   </div>
 </div>
 
-<!-- âââââââââââ SETUP (CREATE POLLS) âââââââââââ -->
+<!-- ═══════════ SETUP (CREATE POLLS) ═══════════ -->
 <div id="setup" class="view">
   <h1>Build Your Polls</h1>
   <p class="setup-subtitle">Add 1-10 questions. You'll control the flow during your presentation.</p>
@@ -737,16 +931,28 @@
   </div>
 </div>
 
-<!-- âââââââââââ PRESENTER âââââââââââ -->
+<!-- ═══════════ PRESENTER LOBBY (QR + ROOM CODE HERO) ═══════════ -->
+<div id="presenter-lobby" class="view">
+  <div class="lobby-instruction"><span class="lobby-pulse"></span> Scan to join</div>
+  <div class="lobby-qr-wrap" id="lobby-qr"></div>
+  <div class="lobby-room-code" id="lobby-room-code">----</div>
+  <div class="lobby-room-label">Room Code</div>
+  <div class="lobby-url" id="lobby-url"></div>
+  <button class="lobby-copy-btn" id="lobby-copy-btn" onclick="copyJoinLink()">Copy Link</button>
+  <div class="lobby-participants" id="lobby-count">0</div>
+  <div class="lobby-participants-label">participants joined</div>
+  <button class="lobby-start-btn" onclick="startFirstQuestion()">Start Polling</button>
+</div>
+
+<!-- ═══════════ PRESENTER (DURING QUESTIONS) ═══════════ -->
 <div id="presenter" class="view">
   <div class="presenter-header">
-    <div>
-      <div class="room-info">Room Code</div>
-      <div class="room-code-display" id="p-room-code">----</div>
-    </div>
-    <div>
-      <div class="room-info">Join at</div>
-      <div class="room-code-display" id="p-join-url" style="font-size:1rem;letter-spacing:0;"></div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div class="header-qr" id="header-qr"></div>
+      <div>
+        <div class="room-info">Room Code</div>
+        <div class="room-code-display" id="p-room-code">----</div>
+      </div>
     </div>
     <div class="participant-count">
       <span id="p-count">0</span> connected
@@ -789,12 +995,16 @@
   </div>
 </div>
 
-<!-- âââââââââââ AUDIENCE âââââââââââ -->
+<!-- ═══════════ AUDIENCE ═══════════ -->
 <div id="audience" class="view">
   <div class="audience-brand">Live Poll</div>
 
+  <div id="a-connected-badge" class="audience-connected-badge">
+    <span class="green-dot"></span> Connected
+  </div>
+
   <div id="a-waiting" class="audience-waiting">
-    <p>Connected. Waiting for the presenter...</p>
+    <p>Waiting for the presenter<span class="waiting-dots"></span></p>
   </div>
 
   <div id="a-question-area" style="display:none;">
@@ -814,11 +1024,11 @@
   </div>
 
   <div id="a-ended" class="audience-waiting" style="display:none;">
-    <p>Session has ended. Thanks for participating.</p>
+    <p>Session has ended. Thanks for participating!</p>
   </div>
 </div>
 
-<!-- âââââââââââ RESULTS VIEW âââââââââââ -->
+<!-- ═══════════ RESULTS VIEW ═══════════ -->
 <div id="results-view" class="view">
   <h1>Session Results</h1>
   <div id="results-content"></div>
@@ -828,15 +1038,16 @@
   </div>
 </div>
 
-<!-- âââââââââââ FIREBASE SDK âââââââââââ -->
+<!-- ═══════════ FIREBASE SDK ═══════════ -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- QR Code generator (lightweight, no dependencies) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// â  FIREBASE CONFIG â PASTE YOUR CONFIG BELOW       â
-// â  See SETUP.md for instructions                   â
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ╔══════════════════════════════════════════════════╗
+// ║  FIREBASE CONFIG                                  ║
+// ╚══════════════════════════════════════════════════╝
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyAJMiDa4-O0MQBZaRW9Id8bU0EyP24SmuQ",
   authDomain: "live-poll-33579.firebaseapp.com",
@@ -847,7 +1058,7 @@ const FIREBASE_CONFIG = {
   appId: "1:182821462877:web:c45ff1c8ed2eb3ed5abeb4"
 };
 
-// ââ Init ââ
+// ── Init ──
 let db = null;
 let firebaseReady = false;
 try {
@@ -863,16 +1074,18 @@ try {
   document.getElementById('config-banner').classList.add('show');
 }
 
-// ââ State ââ
-let currentSession = null; // { code, questions, currentQ, status }
+// ── State ──
+let currentSession = null;
 let isPresenter = false;
 let voterId = localStorage.getItem('lp_voter_id') || generateId();
 localStorage.setItem('lp_voter_id', voterId);
 let questionsQueue = [];
 let listeners = [];
 let hasVotedThisQ = false;
+let lobbyQR = null;
+let headerQR = null;
 
-// ââ Utilities ââ
+// ── Utilities ──
 function generateId() {
   return Math.random().toString(36).substr(2, 12);
 }
@@ -883,15 +1096,67 @@ function generateRoomCode() {
   return code;
 }
 
+function getJoinURL(code) {
+  return location.origin + location.pathname + '#join/' + code;
+}
+
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Auto-focus join code on landing
+  if (id === 'landing') {
+    setTimeout(() => {
+      const el = document.getElementById('join-code');
+      if (el) el.focus();
+    }, 100);
+  }
 }
 
-// ââ LANDING ââ
+function generateQRCode(container, url, size) {
+  container.innerHTML = '';
+  return new QRCode(container, {
+    text: url,
+    width: size,
+    height: size,
+    colorDark: '#121A28',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+function copyJoinLink() {
+  if (!currentSession) return;
+  const url = getJoinURL(currentSession.code);
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('lobby-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('lobby-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+  });
+}
+
+// ── LANDING ──
 document.getElementById('join-code').addEventListener('keyup', function(e) {
   this.value = this.value.toUpperCase();
   if (e.key === 'Enter') joinSession();
+});
+
+// Auto-focus on load
+window.addEventListener('load', () => {
+  const joinInput = document.getElementById('join-code');
+  if (joinInput && document.getElementById('landing').classList.contains('active')) {
+    setTimeout(() => joinInput.focus(), 200);
+  }
 });
 
 async function joinSession() {
@@ -930,7 +1195,7 @@ function showJoinError(msg) {
   setTimeout(() => el.style.display = 'none', 4000);
 }
 
-// ââ SETUP (BUILD POLLS) ââ
+// ── SETUP (BUILD POLLS) ──
 function toggleQuestionFields() {
   const type = document.getElementById('q-type').value;
   document.getElementById('mc-fields').style.display = type === 'multiple_choice' ? 'block' : 'none';
@@ -975,7 +1240,6 @@ function addQuestion() {
 
   questionsQueue.push(q);
   renderQueue();
-  // Reset form
   document.getElementById('q-text').value = '';
   document.querySelectorAll('#options-list .option-input').forEach(i => i.value = '');
 }
@@ -1005,7 +1269,7 @@ function renderQueue() {
   `).join('');
 }
 
-// ââ LAUNCH SESSION ââ
+// ── LAUNCH SESSION → LOBBY ──
 async function launchSession() {
   if (!firebaseReady) { alert('Firebase not configured.'); return; }
   if (questionsQueue.length === 0) return;
@@ -1015,7 +1279,7 @@ async function launchSession() {
     code,
     questions: questionsQueue,
     currentQ: 0,
-    status: 'waiting', // waiting | voting | closed | ended
+    status: 'lobby',
     createdAt: Date.now()
   };
 
@@ -1023,27 +1287,59 @@ async function launchSession() {
   currentSession = session;
   isPresenter = true;
 
+  // Show the lobby (QR + big room code)
+  showView('presenter-lobby');
+
+  // Generate QR code for the lobby
+  const joinURL = getJoinURL(code);
+  document.getElementById('lobby-room-code').textContent = code;
+  document.getElementById('lobby-url').textContent = joinURL.replace('https://', '').replace('http://', '');
+
+  // QR code — size based on viewport
+  const qrSize = Math.min(280, Math.floor(window.innerWidth * 0.35));
+  generateQRCode(document.getElementById('lobby-qr'), joinURL, qrSize);
+
+  // Listen for participants joining
+  listenForParticipants(code);
+}
+
+function listenForParticipants(code) {
+  const pRef = db.ref('sessions/' + code + '/participants');
+  pRef.on('value', snap => {
+    const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+    // Update lobby count
+    const lobbyCount = document.getElementById('lobby-count');
+    if (lobbyCount) lobbyCount.textContent = count;
+    // Update presenter header count
+    const pCount = document.getElementById('p-count');
+    if (pCount) pCount.textContent = count;
+  });
+  listeners.push({ ref: pRef, event: 'value' });
+}
+
+// ── TRANSITION: LOBBY → FIRST QUESTION ──
+function startFirstQuestion() {
+  const code = currentSession.code;
+
+  // Update status in Firebase
+  db.ref('sessions/' + code + '/status').set('waiting');
+  currentSession.status = 'waiting';
+
+  // Switch to presenter question view
   showView('presenter');
   document.getElementById('p-room-code').textContent = code;
-  document.getElementById('p-join-url').textContent = location.origin + location.pathname;
+
+  // Generate small QR for the header
+  const joinURL = getJoinURL(code);
+  generateQRCode(document.getElementById('header-qr'), joinURL, 52);
 
   listenAsPresenter(code);
   showPresenterState('waiting');
 }
 
-// ââ PRESENTER LOGIC ââ
+// ── PRESENTER LOGIC ──
 function listenAsPresenter(code) {
-  cleanupListeners();
-
-  // Participant count
-  const pRef = db.ref('sessions/' + code + '/participants');
-  pRef.on('value', snap => {
-    const count = snap.exists() ? Object.keys(snap.val()).length : 0;
-    document.getElementById('p-count').textContent = count;
-  });
-  listeners.push({ ref: pRef, event: 'value' });
-
-  // Session status changes
+  // Don't double-register participant listener if already listening
   const sRef = db.ref('sessions/' + code);
   sRef.on('value', snap => {
     if (!snap.exists()) return;
@@ -1064,9 +1360,8 @@ function showPresenterState(state) {
 
   if (state === 'waiting') {
     waiting.style.display = 'block';
-    // Auto-show first question after a moment
     setTimeout(() => {
-      if (currentSession && currentSession.status === 'waiting') {
+      if (currentSession && (currentSession.status === 'waiting' || currentSession.status === 'lobby')) {
         showPresenterQuestion();
       }
     }, 500);
@@ -1104,7 +1399,7 @@ function showPresenterQuestion() {
     renderRatingResults(q, {});
   }
 
-  // Listen for votes on this question
+  // Listen for votes
   const vRef = db.ref('sessions/' + currentSession.code + '/votes/' + currentSession.currentQ);
   vRef.on('value', snap => {
     const votes = snap.exists() ? snap.val() : {};
@@ -1171,7 +1466,7 @@ function renderRatingResults(q, votes) {
     }
   });
 
-  const avg = count > 0 ? (sum / count).toFixed(1) : 'â';
+  const avg = count > 0 ? (sum / count).toFixed(1) : '—';
   const maxCount = Math.max(...Object.values(distribution), 1);
 
   container.innerHTML = `
@@ -1221,8 +1516,8 @@ async function nextQuestion() {
   currentSession.currentQ = nextQ;
   currentSession.status = 'waiting';
 
-  // Clean up old vote listener
   cleanupListeners();
+  listenForParticipants(code);
   listenAsPresenter(code);
   showPresenterQuestion();
 }
@@ -1234,7 +1529,7 @@ async function endSession() {
   showPresenterState('ended');
 }
 
-// ââ AUDIENCE LOGIC ââ
+// ── AUDIENCE LOGIC ──
 function listenAsAudience(code) {
   cleanupListeners();
 
@@ -1254,6 +1549,7 @@ function renderAudienceView(data) {
   const voted = document.getElementById('a-voted');
   const closed = document.getElementById('a-closed');
   const ended = document.getElementById('a-ended');
+  const badge = document.getElementById('a-connected-badge');
 
   waiting.style.display = 'none';
   qArea.style.display = 'none';
@@ -1262,19 +1558,21 @@ function renderAudienceView(data) {
   ended.style.display = 'none';
 
   if (data.status === 'ended') {
+    badge.style.display = 'none';
     ended.style.display = 'block';
     return;
   }
 
-  if (data.status === 'waiting') {
-    // Check if voter already voted on this question
+  badge.style.display = 'inline-flex';
+
+  if (data.status === 'waiting' || data.status === 'lobby') {
     waiting.style.display = 'block';
-    waiting.querySelector('p').textContent = 'Waiting for the presenter to open voting...';
+    waiting.querySelector('p').innerHTML = 'Waiting for the presenter<span class="waiting-dots"></span>';
     hasVotedThisQ = false;
     return;
   }
 
-  // Check if already voted on this question
+  // Check if already voted
   const q = data.questions[data.currentQ];
   const votes = data.votes && data.votes[data.currentQ] ? data.votes[data.currentQ] : {};
   const alreadyVoted = votes[voterId] !== undefined;
@@ -1314,7 +1612,7 @@ function renderAudienceView(data) {
         <span>${q.lowLabel || 'Low'}</span>
         <span>${q.highLabel || 'High'}</span>
       </div>
-      <button class="btn btn-primary" id="submit-rating-btn" onclick="castVote(selectedRating)" style="display:none;width:100%;">Submit</button>
+      <button class="btn btn-primary" id="submit-rating-btn" onclick="castVote(selectedRating)" style="display:none;width:100%;padding:1rem;">Submit</button>
     `;
   }
 }
@@ -1344,7 +1642,7 @@ async function castVote(value) {
   document.getElementById('a-voted').style.display = 'block';
 }
 
-// ââ RESULTS VIEW ââ
+// ── RESULTS VIEW ──
 function showResults() {
   showView('results-view');
   const container = document.getElementById('results-content');
@@ -1375,7 +1673,7 @@ function showResults() {
         const n = parseInt(v.value);
         if (n >= 1 && n <= 5) { dist[n]++; sum += n; }
       });
-      const avg = voteList.length ? (sum / voteList.length).toFixed(1) : 'â';
+      const avg = voteList.length ? (sum / voteList.length).toFixed(1) : '—';
       return `<div class="result-card">
         <h3>${q.text}</h3>
         <div class="rc-type">Rating Scale / ${voteList.length} responses / Avg: ${avg}</div>
@@ -1428,13 +1726,13 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
-// ââ CLEANUP ââ
+// ── CLEANUP ──
 function cleanupListeners() {
   listeners.forEach(l => l.ref.off(l.event));
   listeners = [];
 }
 
-// ââ HASH ROUTING (for direct join links) ââ
+// ── HASH ROUTING (for direct join links) ──
 function checkHash() {
   const hash = location.hash;
   if (hash.startsWith('#join/')) {
@@ -1448,4 +1746,3 @@ window.addEventListener('load', checkHash);
 </script>
 </body>
 </html>
-
