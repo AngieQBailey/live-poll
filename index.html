@@ -590,6 +590,95 @@
     margin-top: 0.25rem;
   }
 
+  /* ── SAVED TEMPLATES ── */
+  .templates-section {
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 2rem;
+  }
+  .templates-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .templates-header h3 {
+    font-family: var(--font-clue);
+    font-size: 0.8rem;
+    color: rgba(245,245,220,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0;
+  }
+  .template-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: rgba(0,104,94,0.12);
+    border-left: 2px solid var(--quetzal);
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .template-card:hover {
+    background: rgba(0,104,94,0.25);
+  }
+  .template-info { flex: 1; }
+  .template-name {
+    font-family: var(--font-evidence);
+    font-size: 1rem;
+    color: var(--ecru-wool);
+  }
+  .template-meta {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: rgba(245,245,220,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.25rem;
+  }
+  .template-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .template-actions button {
+    background: none;
+    border: 1px solid rgba(245,245,220,0.15);
+    color: rgba(245,245,220,0.5);
+    font-family: var(--font-clue);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .template-actions button:hover {
+    border-color: var(--quetzal-bright);
+    color: var(--quetzal-bright);
+  }
+  .template-actions button.delete-template:hover {
+    border-color: var(--valentino);
+    color: var(--valentino);
+  }
+  .save-template-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .save-template-row input {
+    flex: 1;
+    max-width: 280px;
+  }
+  .no-templates {
+    font-family: var(--font-clue);
+    font-size: 0.8rem;
+    color: rgba(245,245,220,0.3);
+    font-style: italic;
+    padding: 0.5rem 0;
+  }
+
   /* ── AUDIENCE VIEW ── */
   #audience {
     padding: 3vh 6vw;
@@ -882,6 +971,13 @@
   <h1>Build Your Polls</h1>
   <p class="setup-subtitle">Add 1-10 questions. You'll control the flow during your presentation.</p>
 
+  <div class="templates-section" id="templates-section">
+    <div class="templates-header">
+      <h3>Saved Polls</h3>
+    </div>
+    <div id="templates-list"></div>
+  </div>
+
   <div class="question-builder">
     <div class="question-form">
       <label>Question Type</label>
@@ -923,9 +1019,17 @@
 
   <div class="questions-queue" id="questions-queue"></div>
 
-  <div style="margin-top:2rem; display:flex; gap:1rem; flex-wrap:wrap;">
+  <div style="margin-top:2rem; display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
     <button class="btn btn-primary" id="launch-btn" onclick="launchSession()" style="display:none;">Launch Session</button>
+    <button class="btn btn-secondary" id="save-template-btn" onclick="showSaveTemplatePrompt()" style="display:none;">Save Poll</button>
     <button class="btn btn-secondary" onclick="showView('landing')">Cancel</button>
+  </div>
+  <div id="save-template-prompt" style="display:none; margin-top:1rem; width:100%; max-width:600px;">
+    <div class="save-template-row">
+      <input type="text" id="template-name-input" placeholder="Name this poll (e.g., HRACMO Workshop)">
+      <button class="btn btn-primary btn-small" onclick="saveTemplate()">Save</button>
+      <button class="btn btn-secondary btn-small" onclick="hideSaveTemplatePrompt()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1108,6 +1212,11 @@ function showView(id) {
       if (el) el.focus();
     }, 100);
   }
+  // Render saved templates when setup view opens
+  if (id === 'setup') {
+    renderTemplates();
+    hideSaveTemplatePrompt();
+  }
 }
 
 function generateQRCode(container, url, size) {
@@ -1250,12 +1359,15 @@ function removeQuestion(idx) {
 function renderQueue() {
   const container = document.getElementById('questions-queue');
   const launchBtn = document.getElementById('launch-btn');
+  const saveBtn = document.getElementById('save-template-btn');
   if (questionsQueue.length === 0) {
     container.innerHTML = '';
     launchBtn.style.display = 'none';
+    if (saveBtn) saveBtn.style.display = 'none';
     return;
   }
   launchBtn.style.display = 'inline-block';
+  if (saveBtn) saveBtn.style.display = 'inline-block';
   container.innerHTML = questionsQueue.map((q, i) => `
     <div class="queued-question">
       <div class="qq-info">
@@ -1265,6 +1377,99 @@ function renderQueue() {
       <button class="btn btn-secondary btn-small" onclick="removeQuestion(${i})">&times;</button>
     </div>
   `).join('');
+}
+
+// ── POLL TEMPLATES (localStorage) ──
+function getTemplates() {
+  try {
+    return JSON.parse(localStorage.getItem('livepoll_templates') || '[]');
+  } catch(e) { return []; }
+}
+
+function saveTemplates(templates) {
+  localStorage.setItem('livepoll_templates', JSON.stringify(templates));
+}
+
+function renderTemplates() {
+  const list = document.getElementById('templates-list');
+  const templates = getTemplates();
+  if (templates.length === 0) {
+    list.innerHTML = '<div class="no-templates">No saved polls yet. Build one and hit Save Poll.</div>';
+    return;
+  }
+  list.innerHTML = templates.map((t, i) => {
+    const qCount = t.questions.length;
+    const qLabel = qCount === 1 ? '1 question' : qCount + ' questions';
+    return `
+      <div class="template-card" onclick="loadTemplate(${i})">
+        <div class="template-info">
+          <div class="template-name">${escapeHTML(t.name)}</div>
+          <div class="template-meta">${qLabel}</div>
+        </div>
+        <div class="template-actions">
+          <button onclick="event.stopPropagation(); loadTemplate(${i})">Use</button>
+          <button class="delete-template" onclick="event.stopPropagation(); deleteTemplate(${i})">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escapeHTML(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function loadTemplate(idx) {
+  const templates = getTemplates();
+  if (!templates[idx]) return;
+  questionsQueue = JSON.parse(JSON.stringify(templates[idx].questions));
+  renderQueue();
+  // Scroll down to show the loaded questions
+  document.getElementById('questions-queue').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteTemplate(idx) {
+  const templates = getTemplates();
+  if (!templates[idx]) return;
+  if (!confirm('Delete "' + templates[idx].name + '"?')) return;
+  templates.splice(idx, 1);
+  saveTemplates(templates);
+  renderTemplates();
+}
+
+function showSaveTemplatePrompt() {
+  document.getElementById('save-template-prompt').style.display = 'block';
+  document.getElementById('template-name-input').value = '';
+  document.getElementById('template-name-input').focus();
+}
+
+function hideSaveTemplatePrompt() {
+  document.getElementById('save-template-prompt').style.display = 'none';
+}
+
+function saveTemplate() {
+  const name = document.getElementById('template-name-input').value.trim();
+  if (!name) { alert('Give this poll a name.'); return; }
+  if (questionsQueue.length === 0) { alert('Add at least one question first.'); return; }
+
+  const templates = getTemplates();
+  // Check for duplicate name
+  const existing = templates.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
+  if (existing >= 0) {
+    if (!confirm('"' + name + '" already exists. Overwrite it?')) return;
+    templates[existing].questions = JSON.parse(JSON.stringify(questionsQueue));
+  } else {
+    templates.push({
+      name,
+      questions: JSON.parse(JSON.stringify(questionsQueue)),
+      createdAt: Date.now()
+    });
+  }
+
+  saveTemplates(templates);
+  renderTemplates();
+  hideSaveTemplatePrompt();
 }
 
 // ── LAUNCH SESSION → LOBBY ──
