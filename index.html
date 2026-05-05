@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Live Poll</title>
+<link href="https://fonts.googleapis.com/css2?family=Imbue:opsz,wght@10..100,400;10..100,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parisian-night: #121A28;
+    --bitter-cacao: #2D1B14;
+    --quetzal: #00685E;
+    --quetzal-bright: #00A896;
+    --ecru-wool: #F5F5DC;
+    --valentino: #C41E3A;
+    --card-bg: rgba(245, 245, 220, 0.14);
+    --font-verdict: 'Imbue', serif;
+    --font-evidence: 'IBM Plex Sans', sans-serif;
+    --font-clue: 'IBM Plex Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-evidence);
+    background: var(--parisian-night);
+    color: var(--ecru-wool);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .view { display: none; min-height: 100vh; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* ââ LANDING VIEW ââ */
+  #landing {
+    align-items: flex-start;
+    justify-content: center;
+    padding: 8vh 10vw;
+  }
+  #landing .brand-mark {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+  #landing h1 {
+    font-family: var(--font-verdict);
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 700;
+    color: var(--ecru-wool);
+    line-height: 1.05;
+    margin-bottom: 0.5rem;
+  }
+  #landing .subtitle {
+    font-family: var(--font-evidence);
+    font-size: 1.1rem;
+    color: var(--quetzal-bright);
+    margin-bottom: 3rem;
+    max-width: 460px;
+  }
+  .landing-actions {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .action-card {
+    background: var(--card-bg);
+    border-left: 3px solid var(--quetzal);
+    padding: 2rem 2.5rem;
+    max-width: 340px;
+  }
+  .action-card h2 {
+    font-family: var(--font-verdict);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--ecru-wool);
+    margin-bottom: 0.5rem;
+  }
+  .action-card p {
+    font-size: 0.9rem;
+    color: rgba(245,245,220,0.65);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  }
+
+  /* ââ FORM ELEMENTS ââ */
+  input[type="text"], input[type="number"] {
+    background: rgba(245,245,220,0.08);
+    border: 1px solid var(--quetzal);
+    color: var(--ecru-wool);
+    font-family: var(--font-clue);
+    font-size: 1.1rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus {
+    border-color: var(--quetzal-bright);
+  }
+  .code-input {
+    font-size: 2rem !important;
+    letter-spacing: 0.5em;
+    text-align: center;
+    text-transform: uppercase;
+    max-width: 220px;
+  }
+
+  button, .btn {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.85rem 1.8rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-block;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--quetzal);
+    color: var(--ecru-wool);
+  }
+  .btn-primary:hover { background: var(--quetzal-bright); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--quetzal-bright);
+    border: 1px solid var(--quetzal);
+  }
+  .btn-secondary:hover { border-color: var(--quetzal-bright); }
+  .btn-danger {
+    background: var(--valentino);
+    color: var(--ecru-wool);
+  }
+  .btn-danger:hover { background: #d42a45; }
+  .btn-small { padding: 0.5rem 1rem; font-size: 0.75rem; }
+
+  /* ââ PRESENTER VIEW ââ */
+  #presenter {
+    padding: 0;
+  }
+  .presenter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 3rem;
+    border-bottom: 1px solid rgba(0,104,94,0.3);
+    flex-shrink: 0;
+  }
+  .presenter-header .room-info {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+  }
+  .presenter-header .room-code-display {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--ecru-wool);
+  }
+  .presenter-header .participant-count {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+  }
+  .presenter-header .participant-count span {
+    color: var(--ecru-wool);
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .presenter-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4vh 8vw;
+  }
+
+  .question-counter {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+  .question-text {
+    font-family: var(--font-verdict);
+    font-size: clamp(2rem, 4.5vw, 3.5rem);
+    font-weight: 700;
+    color: var(--ecru-wool);
+    line-height: 1.15;
+    margin-bottom: 2.5rem;
+    max-width: 80%;
+  }
+
+  /* ââ RESULTS DISPLAY ââ */
+  .results-container {
+    width: 100%;
+    max-width: 800px;
+  }
+  .result-bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+  }
+  .result-label {
+    font-family: var(--font-evidence);
+    font-size: 1.1rem;
+    color: var(--ecru-wool);
+    min-width: 180px;
+    text-align: left;
+  }
+  .result-bar-track {
+    flex: 1;
+    height: 40px;
+    background: rgba(245,245,220,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .result-bar-fill {
+    height: 100%;
+    background: var(--quetzal);
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    min-width: 0;
+  }
+  .result-bar-fill.highlight {
+    background: var(--quetzal-bright);
+  }
+  .result-count {
+    font-family: var(--font-clue);
+    font-size: 0.9rem;
+    color: var(--quetzal-bright);
+    min-width: 60px;
+    text-align: right;
+  }
+
+  /* Rating scale results */
+  .rating-results {
+    width: 100%;
+    max-width: 700px;
+  }
+  .rating-avg {
+    font-family: var(--font-verdict);
+    font-size: 5rem;
+    font-weight: 700;
+    color: var(--quetzal-bright);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .rating-avg-label {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: rgba(245,245,220,0.5);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+  .rating-distribution {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 160px;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid rgba(0,104,94,0.3);
+    position: relative;
+  }
+  .rating-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .rating-bar {
+    width: 100%;
+    background: var(--quetzal);
+    transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    min-height: 0;
+  }
+  .rating-bar.peak { background: var(--quetzal-bright); }
+  .rating-bar-label {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+    margin-top: 0.5rem;
+    position: absolute;
+    bottom: 0;
+  }
+  .rating-bar-count {
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    color: rgba(245,245,220,0.5);
+    margin-bottom: 4px;
+  }
+
+  .presenter-controls {
+    display: flex;
+    gap: 1rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+  }
+
+  /* Waiting state */
+  .waiting-state {
+    text-align: left;
+  }
+  .waiting-state .pulse {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--quetzal-bright);
+    animation: pulse 1.5s ease-in-out infinite;
+    margin-right: 0.75rem;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+  .waiting-text {
+    font-family: var(--font-clue);
+    font-size: 0.9rem;
+    color: rgba(245,245,220,0.5);
+  }
+
+  .vote-count-live {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+    margin-top: 1rem;
+  }
+
+  /* ââ SETUP VIEW (poll creation) ââ */
+  #setup {
+    padding: 4vh 8vw;
+    align-items: flex-start;
+  }
+  #setup h1 {
+    font-family: var(--font-verdict);
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+  #setup .setup-subtitle {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: var(--quetzal-bright);
+    margin-bottom: 2rem;
+  }
+  .question-builder {
+    width: 100%;
+    max-width: 600px;
+  }
+  .question-form {
+    background: var(--card-bg);
+    border-left: 3px solid var(--quetzal);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .question-form label {
+    font-family: var(--font-clue);
+    font-size: 0.8rem;
+    color: var(--quetzal-bright);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .question-form input, .question-form select {
+    margin-bottom: 1rem;
+  }
+  .question-form select {
+    background: rgba(245,245,220,0.08);
+    border: 1px solid var(--quetzal);
+    color: var(--ecru-wool);
+    font-family: var(--font-clue);
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    width: 100%;
+    outline: none;
+  }
+  .question-form select option {
+    background: var(--parisian-night);
+    color: var(--ecru-wool);
+  }
+  .options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .option-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .option-row input { flex: 1; }
+  .remove-option {
+    background: none;
+    border: none;
+    color: var(--valentino);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    font-family: var(--font-clue);
+  }
+
+  .questions-queue {
+    width: 100%;
+    max-width: 600px;
+    margin-top: 1rem;
+  }
+  .queued-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: rgba(245,245,220,0.06);
+    border-left: 2px solid var(--quetzal);
+    margin-bottom: 0.5rem;
+  }
+  .queued-question .qq-info {
+    flex: 1;
+  }
+  .queued-question .qq-type {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: var(--quetzal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .queued-question .qq-text {
+    font-family: var(--font-evidence);
+    font-size: 1rem;
+    color: var(--ecru-wool);
+    margin-top: 0.25rem;
+  }
+
+  /* ââ AUDIENCE VIEW ââ */
+  #audience {
+    padding: 3vh 6vw;
+    align-items: center;
+    justify-content: center;
+  }
+  .audience-brand {
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    color: var(--quetzal-bright);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+  .audience-question {
+    font-family: var(--font-verdict);
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-weight: 700;
+    color: var(--ecru-wool);
+    line-height: 1.2;
+    text-align: left;
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 2rem;
+  }
+  .audience-options {
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .vote-option {
+    background: var(--card-bg);
+    border: 2px solid transparent;
+    border-left: 3px solid var(--quetzal);
+    padding: 1.2rem 1.5rem;
+    color: var(--ecru-wool);
+    font-family: var(--font-evidence);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+  }
+  .vote-option:hover {
+    border-left-color: var(--quetzal-bright);
+    background: rgba(245,245,220,0.1);
+  }
+  .vote-option.selected {
+    border-color: var(--quetzal-bright);
+    border-left-color: var(--quetzal-bright);
+    background: rgba(0,168,150,0.15);
+  }
+  .vote-option:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  /* Rating scale audience */
+  .rating-scale-input {
+    width: 100%;
+    max-width: 500px;
+  }
+  .rating-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  .rating-btn {
+    width: 56px;
+    height: 56px;
+    background: var(--card-bg);
+    border: 2px solid var(--quetzal);
+    color: var(--ecru-wool);
+    font-family: var(--font-verdict);
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rating-btn:hover {
+    border-color: var(--quetzal-bright);
+    background: rgba(0,168,150,0.1);
+  }
+  .rating-btn.selected {
+    background: var(--quetzal-bright);
+    border-color: var(--quetzal-bright);
+    color: var(--parisian-night);
+  }
+  .rating-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    color: rgba(245,245,220,0.4);
+    margin-bottom: 1.5rem;
+  }
+
+  .voted-confirmation {
+    text-align: center;
+    padding: 2rem;
+  }
+  .voted-confirmation .check {
+    font-size: 3rem;
+    color: var(--quetzal-bright);
+    margin-bottom: 1rem;
+  }
+  .voted-confirmation p {
+    font-family: var(--font-clue);
+    font-size: 0.85rem;
+    color: rgba(245,245,220,0.5);
+  }
+
+  .audience-waiting {
+    text-align: center;
+    padding: 2rem;
+  }
+  .audience-waiting p {
+    font-family: var(--font-clue);
+    font-size: 0.9rem;
+    color: rgba(245,245,220,0.4);
+  }
+
+  /* ââ RESULTS EXPORT VIEW ââ */
+  #results-view {
+    padding: 4vh 8vw;
+    align-items: flex-start;
+  }
+  #results-view h1 {
+    font-family: var(--font-verdict);
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+  }
+  .result-card {
+    background: var(--card-bg);
+    border-left: 3px solid var(--quetzal);
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    max-width: 700px;
+  }
+  .result-card h3 {
+    font-family: var(--font-evidence);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .result-card .rc-type {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: var(--quetzal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+  .result-card table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .result-card th, .result-card td {
+    text-align: left;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+  }
+  .result-card th {
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    color: var(--quetzal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid rgba(0,104,94,0.3);
+  }
+  .result-card td {
+    color: var(--ecru-wool);
+    border-bottom: 1px solid rgba(245,245,220,0.06);
+  }
+
+  /* ââ CONFIG MISSING BANNER ââ */
+  .config-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: var(--valentino);
+    color: var(--ecru-wool);
+    padding: 0.75rem 2rem;
+    font-family: var(--font-clue);
+    font-size: 0.8rem;
+    text-align: center;
+    z-index: 999;
+    display: none;
+  }
+  .config-banner.show { display: block; }
+
+  /* ââ RESPONSIVE ââ */
+  @media (max-width: 600px) {
+    #landing { padding: 6vh 6vw; }
+    .landing-actions { flex-direction: column; gap: 1.5rem; }
+    .action-card { max-width: 100%; }
+    .presenter-header { padding: 1rem 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+    .presenter-body { padding: 3vh 5vw; }
+    .question-text { max-width: 100%; }
+    .result-label { min-width: 100px; font-size: 0.9rem; }
+    .rating-btn { width: 44px; height: 44px; font-size: 1.1rem; }
+    #setup { padding: 3vh 5vw; }
+  }
+</style>
+</head>
+<body>
+
+<div id="config-banner" class="config-banner">
+  Firebase not configured. Open this file and add your Firebase config to the FIREBASE_CONFIG object.
+</div>
+
+<!-- âââââââââââ LANDING âââââââââââ -->
+<div id="landing" class="view active">
+  <div class="brand-mark">Live Poll</div>
+  <h1>What does the room think?</h1>
+  <p class="subtitle">Real-time polling for presentations and classrooms. No accounts, no downloads.</p>
+  <div class="landing-actions">
+    <div class="action-card">
+      <h2>Present</h2>
+      <p>Create polls and display live results on your screen.</p>
+      <button class="btn btn-primary" onclick="showView('setup')">Create Session</button>
+    </div>
+    <div class="action-card">
+      <h2>Vote</h2>
+      <p>Enter the room code shown on the presenter's screen.</p>
+      <input type="text" id="join-code" class="code-input" placeholder="CODE" maxlength="4" autocomplete="off">
+      <div style="margin-top:1rem;">
+        <button class="btn btn-primary" onclick="joinSession()">Join</button>
+      </div>
+      <p id="join-error" style="color:var(--valentino);font-family:var(--font-clue);font-size:0.8rem;margin-top:0.5rem;display:none;"></p>
+    </div>
+  </div>
+</div>
+
+<!-- âââââââââââ SETUP (CREATE POLLS) âââââââââââ -->
+<div id="setup" class="view">
+  <h1>Build Your Polls</h1>
+  <p class="setup-subtitle">Add 1-10 questions. You'll control the flow during your presentation.</p>
+
+  <div class="question-builder">
+    <div class="question-form">
+      <label>Question Type</label>
+      <select id="q-type" onchange="toggleQuestionFields()">
+        <option value="multiple_choice">Multiple Choice</option>
+        <option value="rating_scale">Rating Scale (1-5)</option>
+      </select>
+
+      <label>Question</label>
+      <input type="text" id="q-text" placeholder="e.g., What's your biggest operational constraint?">
+
+      <div id="mc-fields">
+        <label>Options</label>
+        <div id="options-list" class="options-list">
+          <div class="option-row">
+            <input type="text" placeholder="Option 1" class="option-input">
+            <button class="remove-option" onclick="removeOption(this)" title="Remove">&times;</button>
+          </div>
+          <div class="option-row">
+            <input type="text" placeholder="Option 2" class="option-input">
+            <button class="remove-option" onclick="removeOption(this)" title="Remove">&times;</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-small" onclick="addOption()">+ Add Option</button>
+      </div>
+
+      <div id="rating-fields" style="display:none;">
+        <label>Low Label</label>
+        <input type="text" id="rating-low" placeholder="e.g., Not at all" value="Not at all">
+        <label>High Label</label>
+        <input type="text" id="rating-high" placeholder="e.g., Completely" value="Completely">
+      </div>
+
+      <div style="margin-top:1.5rem;">
+        <button class="btn btn-primary" onclick="addQuestion()">Add Question</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="questions-queue" id="questions-queue"></div>
+
+  <div style="margin-top:2rem; display:flex; gap:1rem; flex-wrap:wrap;">
+    <button class="btn btn-primary" id="launch-btn" onclick="launchSession()" style="display:none;">Launch Session</button>
+    <button class="btn btn-secondary" onclick="showView('landing')">Cancel</button>
+  </div>
+</div>
+
+<!-- âââââââââââ PRESENTER âââââââââââ -->
+<div id="presenter" class="view">
+  <div class="presenter-header">
+    <div>
+      <div class="room-info">Room Code</div>
+      <div class="room-code-display" id="p-room-code">----</div>
+    </div>
+    <div>
+      <div class="room-info">Join at</div>
+      <div class="room-code-display" id="p-join-url" style="font-size:1rem;letter-spacing:0;"></div>
+    </div>
+    <div class="participant-count">
+      <span id="p-count">0</span> connected
+    </div>
+  </div>
+
+  <div class="presenter-body">
+    <div id="p-waiting" class="waiting-state" style="display:none;">
+      <div style="display:flex;align-items:center;">
+        <span class="pulse"></span>
+        <span class="waiting-text">Waiting for participants to join...</span>
+      </div>
+    </div>
+
+    <div id="p-question-area" style="display:none;">
+      <div class="question-counter" id="p-q-counter">Question 1 of 4</div>
+      <div class="question-text" id="p-q-text"></div>
+
+      <div id="p-mc-results" class="results-container" style="display:none;"></div>
+      <div id="p-rating-results" class="rating-results" style="display:none;"></div>
+
+      <div class="vote-count-live" id="p-vote-count"></div>
+
+      <div class="presenter-controls">
+        <button class="btn btn-secondary" id="p-open-btn" onclick="toggleVoting()">Open Voting</button>
+        <button class="btn btn-primary" id="p-next-btn" onclick="nextQuestion()" style="display:none;">Next Question</button>
+        <button class="btn btn-danger btn-small" id="p-end-btn" onclick="endSession()">End Session</button>
+      </div>
+    </div>
+
+    <div id="p-ended" style="display:none;">
+      <div class="question-text">Session ended</div>
+      <p style="color:var(--quetzal-bright);font-family:var(--font-clue);font-size:0.9rem;margin-bottom:2rem;">All responses have been saved.</p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="showResults()">View Results</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-secondary" onclick="showView('landing')">New Session</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- âââââââââââ AUDIENCE âââââââââââ -->
+<div id="audience" class="view">
+  <div class="audience-brand">Live Poll</div>
+
+  <div id="a-waiting" class="audience-waiting">
+    <p>Connected. Waiting for the presenter...</p>
+  </div>
+
+  <div id="a-question-area" style="display:none;">
+    <div class="audience-question" id="a-q-text"></div>
+
+    <div id="a-mc-options" class="audience-options" style="display:none;"></div>
+    <div id="a-rating-options" class="rating-scale-input" style="display:none;"></div>
+  </div>
+
+  <div id="a-voted" class="voted-confirmation" style="display:none;">
+    <div class="check">&#10003;</div>
+    <p>Response recorded. Waiting for next question...</p>
+  </div>
+
+  <div id="a-closed" class="audience-waiting" style="display:none;">
+    <p>Voting is closed for this question.</p>
+  </div>
+
+  <div id="a-ended" class="audience-waiting" style="display:none;">
+    <p>Session has ended. Thanks for participating.</p>
+  </div>
+</div>
+
+<!-- âââââââââââ RESULTS VIEW âââââââââââ -->
+<div id="results-view" class="view">
+  <h1>Session Results</h1>
+  <div id="results-content"></div>
+  <div style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-secondary" onclick="showView('landing')">Done</button>
+  </div>
+</div>
+
+<!-- âââââââââââ FIREBASE SDK âââââââââââ -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// â  FIREBASE CONFIG â PASTE YOUR CONFIG BELOW       â
+// â  See SETUP.md for instructions                   â
+// ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAJMiDa4-O0MQBZaRW9Id8bU0EyP24SmuQ",
+  authDomain: "live-poll-33579.firebaseapp.com",
+  databaseURL: "https://live-poll-33579-default-rtdb.firebaseio.com",
+  projectId: "live-poll-33579",
+  storageBucket: "live-poll-33579.firebasestorage.app",
+  messagingSenderId: "182821462877",
+  appId: "1:182821462877:web:c45ff1c8ed2eb3ed5abeb4"
+};
+
+// ââ Init ââ
+let db = null;
+let firebaseReady = false;
+try {
+  if (FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    firebaseReady = true;
+  } else {
+    document.getElementById('config-banner').classList.add('show');
+  }
+} catch(e) {
+  console.error("Firebase init error:", e);
+  document.getElementById('config-banner').classList.add('show');
+}
+
+// ââ State ââ
+let currentSession = null; // { code, questions, currentQ, status }
+let isPresenter = false;
+let voterId = localStorage.getItem('lp_voter_id') || generateId();
+localStorage.setItem('lp_voter_id', voterId);
+let questionsQueue = [];
+let listeners = [];
+let hasVotedThisQ = false;
+
+// ââ Utilities ââ
+function generateId() {
+  return Math.random().toString(36).substr(2, 12);
+}
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ââ LANDING ââ
+document.getElementById('join-code').addEventListener('keyup', function(e) {
+  this.value = this.value.toUpperCase();
+  if (e.key === 'Enter') joinSession();
+});
+
+async function joinSession() {
+  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (code.length !== 4) {
+    showJoinError('Enter a 4-character room code.');
+    return;
+  }
+  const snap = await db.ref('sessions/' + code).once('value');
+  if (!snap.exists()) {
+    showJoinError('Session not found. Check the code.');
+    return;
+  }
+  const data = snap.val();
+  if (data.status === 'ended') {
+    showJoinError('This session has ended.');
+    return;
+  }
+  currentSession = { code, ...data };
+  isPresenter = false;
+
+  // Register as participant
+  const pRef = db.ref('sessions/' + code + '/participants/' + voterId);
+  pRef.set({ joined: Date.now() });
+  pRef.onDisconnect().remove();
+
+  showView('audience');
+  listenAsAudience(code);
+}
+
+function showJoinError(msg) {
+  const el = document.getElementById('join-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// ââ SETUP (BUILD POLLS) ââ
+function toggleQuestionFields() {
+  const type = document.getElementById('q-type').value;
+  document.getElementById('mc-fields').style.display = type === 'multiple_choice' ? 'block' : 'none';
+  document.getElementById('rating-fields').style.display = type === 'rating_scale' ? 'block' : 'none';
+}
+
+function addOption() {
+  const list = document.getElementById('options-list');
+  if (list.children.length >= 6) return;
+  const row = document.createElement('div');
+  row.className = 'option-row';
+  row.innerHTML = `<input type="text" placeholder="Option ${list.children.length + 1}" class="option-input">
+    <button class="remove-option" onclick="removeOption(this)" title="Remove">&times;</button>`;
+  list.appendChild(row);
+}
+
+function removeOption(btn) {
+  const list = document.getElementById('options-list');
+  if (list.children.length <= 2) return;
+  btn.parentElement.remove();
+}
+
+function addQuestion() {
+  const type = document.getElementById('q-type').value;
+  const text = document.getElementById('q-text').value.trim();
+  if (!text) { alert('Enter a question.'); return; }
+
+  const q = { type, text };
+
+  if (type === 'multiple_choice') {
+    const inputs = document.querySelectorAll('#options-list .option-input');
+    const opts = [];
+    inputs.forEach(i => { if (i.value.trim()) opts.push(i.value.trim()); });
+    if (opts.length < 2) { alert('Add at least 2 options.'); return; }
+    q.options = opts;
+  } else {
+    q.min = 1;
+    q.max = 5;
+    q.lowLabel = document.getElementById('rating-low').value.trim() || 'Low';
+    q.highLabel = document.getElementById('rating-high').value.trim() || 'High';
+  }
+
+  questionsQueue.push(q);
+  renderQueue();
+  // Reset form
+  document.getElementById('q-text').value = '';
+  document.querySelectorAll('#options-list .option-input').forEach(i => i.value = '');
+}
+
+function removeQuestion(idx) {
+  questionsQueue.splice(idx, 1);
+  renderQueue();
+}
+
+function renderQueue() {
+  const container = document.getElementById('questions-queue');
+  const launchBtn = document.getElementById('launch-btn');
+  if (questionsQueue.length === 0) {
+    container.innerHTML = '';
+    launchBtn.style.display = 'none';
+    return;
+  }
+  launchBtn.style.display = 'inline-block';
+  container.innerHTML = questionsQueue.map((q, i) => `
+    <div class="queued-question">
+      <div class="qq-info">
+        <div class="qq-type">${q.type === 'multiple_choice' ? 'Multiple Choice' : 'Rating Scale'}</div>
+        <div class="qq-text">${q.text}</div>
+      </div>
+      <button class="btn btn-secondary btn-small" onclick="removeQuestion(${i})">&times;</button>
+    </div>
+  `).join('');
+}
+
+// ââ LAUNCH SESSION ââ
+async function launchSession() {
+  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  if (questionsQueue.length === 0) return;
+
+  const code = generateRoomCode();
+  const session = {
+    code,
+    questions: questionsQueue,
+    currentQ: 0,
+    status: 'waiting', // waiting | voting | closed | ended
+    createdAt: Date.now()
+  };
+
+  await db.ref('sessions/' + code).set(session);
+  currentSession = session;
+  isPresenter = true;
+
+  showView('presenter');
+  document.getElementById('p-room-code').textContent = code;
+  document.getElementById('p-join-url').textContent = location.origin + location.pathname;
+
+  listenAsPresenter(code);
+  showPresenterState('waiting');
+}
+
+// ââ PRESENTER LOGIC ââ
+function listenAsPresenter(code) {
+  cleanupListeners();
+
+  // Participant count
+  const pRef = db.ref('sessions/' + code + '/participants');
+  pRef.on('value', snap => {
+    const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+    document.getElementById('p-count').textContent = count;
+  });
+  listeners.push({ ref: pRef, event: 'value' });
+
+  // Session status changes
+  const sRef = db.ref('sessions/' + code);
+  sRef.on('value', snap => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    currentSession = { code, ...data };
+  });
+  listeners.push({ ref: sRef, event: 'value' });
+}
+
+function showPresenterState(state) {
+  const waiting = document.getElementById('p-waiting');
+  const qArea = document.getElementById('p-question-area');
+  const ended = document.getElementById('p-ended');
+
+  waiting.style.display = 'none';
+  qArea.style.display = 'none';
+  ended.style.display = 'none';
+
+  if (state === 'waiting') {
+    waiting.style.display = 'block';
+    // Auto-show first question after a moment
+    setTimeout(() => {
+      if (currentSession && currentSession.status === 'waiting') {
+        showPresenterQuestion();
+      }
+    }, 500);
+  } else if (state === 'question') {
+    showPresenterQuestion();
+  } else if (state === 'ended') {
+    ended.style.display = 'block';
+  }
+}
+
+function showPresenterQuestion() {
+  const qArea = document.getElementById('p-question-area');
+  const waiting = document.getElementById('p-waiting');
+  const ended = document.getElementById('p-ended');
+
+  waiting.style.display = 'none';
+  ended.style.display = 'none';
+  qArea.style.display = 'block';
+
+  const q = currentSession.questions[currentSession.currentQ];
+  const total = currentSession.questions.length;
+  document.getElementById('p-q-counter').textContent = `Question ${currentSession.currentQ + 1} of ${total}`;
+  document.getElementById('p-q-text').textContent = q.text;
+
+  const mcResults = document.getElementById('p-mc-results');
+  const ratingResults = document.getElementById('p-rating-results');
+  mcResults.style.display = 'none';
+  ratingResults.style.display = 'none';
+
+  if (q.type === 'multiple_choice') {
+    mcResults.style.display = 'block';
+    renderMCResults(q, {});
+  } else {
+    ratingResults.style.display = 'block';
+    renderRatingResults(q, {});
+  }
+
+  // Listen for votes on this question
+  const vRef = db.ref('sessions/' + currentSession.code + '/votes/' + currentSession.currentQ);
+  vRef.on('value', snap => {
+    const votes = snap.exists() ? snap.val() : {};
+    const voteCount = Object.keys(votes).length;
+    document.getElementById('p-vote-count').textContent = `${voteCount} response${voteCount !== 1 ? 's' : ''}`;
+    if (q.type === 'multiple_choice') {
+      renderMCResults(q, votes);
+    } else {
+      renderRatingResults(q, votes);
+    }
+  });
+  listeners.push({ ref: vRef, event: 'value' });
+
+  // Button states
+  const openBtn = document.getElementById('p-open-btn');
+  const nextBtn = document.getElementById('p-next-btn');
+
+  if (currentSession.status === 'voting') {
+    openBtn.textContent = 'Close Voting';
+    openBtn.className = 'btn btn-danger';
+  } else {
+    openBtn.textContent = 'Open Voting';
+    openBtn.className = 'btn btn-secondary';
+  }
+
+  nextBtn.style.display = (currentSession.currentQ < total - 1) ? 'inline-block' : 'none';
+}
+
+function renderMCResults(q, votes) {
+  const container = document.getElementById('p-mc-results');
+  const counts = {};
+  q.options.forEach(o => counts[o] = 0);
+  Object.values(votes).forEach(v => {
+    if (counts[v.value] !== undefined) counts[v.value]++;
+  });
+  const max = Math.max(...Object.values(counts), 1);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  container.innerHTML = q.options.map(opt => {
+    const count = counts[opt];
+    const pct = total > 0 ? (count / total * 100) : 0;
+    const isMax = count === max && count > 0;
+    return `<div class="result-bar-row">
+      <div class="result-label">${opt}</div>
+      <div class="result-bar-track">
+        <div class="result-bar-fill ${isMax ? 'highlight' : ''}" style="width:${pct}%"></div>
+      </div>
+      <div class="result-count">${count} (${Math.round(pct)}%)</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRatingResults(q, votes) {
+  const container = document.getElementById('p-rating-results');
+  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let sum = 0, count = 0;
+
+  Object.values(votes).forEach(v => {
+    const val = parseInt(v.value);
+    if (val >= 1 && val <= 5) {
+      distribution[val]++;
+      sum += val;
+      count++;
+    }
+  });
+
+  const avg = count > 0 ? (sum / count).toFixed(1) : 'â';
+  const maxCount = Math.max(...Object.values(distribution), 1);
+
+  container.innerHTML = `
+    <div class="rating-avg">${avg}</div>
+    <div class="rating-avg-label">Average Rating (${count} response${count !== 1 ? 's' : ''})</div>
+    <div class="rating-distribution">
+      ${[1,2,3,4,5].map(n => {
+        const h = distribution[n] > 0 ? (distribution[n] / maxCount * 120) : 0;
+        const isPeak = distribution[n] === maxCount && distribution[n] > 0;
+        return `<div class="rating-bar-col">
+          <div class="rating-bar-count">${distribution[n]}</div>
+          <div class="rating-bar ${isPeak ? 'peak' : ''}" style="height:${h}px"></div>
+          <div class="rating-bar-label">${n}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:0.5rem;">
+      <span style="font-family:var(--font-clue);font-size:0.75rem;color:rgba(245,245,220,0.4);">${q.lowLabel || 'Low'}</span>
+      <span style="font-family:var(--font-clue);font-size:0.75rem;color:rgba(245,245,220,0.4);">${q.highLabel || 'High'}</span>
+    </div>
+  `;
+}
+
+async function toggleVoting() {
+  const code = currentSession.code;
+  const currentStatus = currentSession.status;
+
+  if (currentStatus === 'voting') {
+    await db.ref('sessions/' + code + '/status').set('closed');
+    currentSession.status = 'closed';
+  } else {
+    await db.ref('sessions/' + code + '/status').set('voting');
+    currentSession.status = 'voting';
+  }
+  showPresenterQuestion();
+}
+
+async function nextQuestion() {
+  const code = currentSession.code;
+  const nextQ = currentSession.currentQ + 1;
+  if (nextQ >= currentSession.questions.length) return;
+
+  await db.ref('sessions/' + code).update({
+    currentQ: nextQ,
+    status: 'waiting'
+  });
+  currentSession.currentQ = nextQ;
+  currentSession.status = 'waiting';
+
+  // Clean up old vote listener
+  cleanupListeners();
+  listenAsPresenter(code);
+  showPresenterQuestion();
+}
+
+async function endSession() {
+  if (!confirm('End this session? Voting will close for all questions.')) return;
+  await db.ref('sessions/' + currentSession.code + '/status').set('ended');
+  currentSession.status = 'ended';
+  showPresenterState('ended');
+}
+
+// ââ AUDIENCE LOGIC ââ
+function listenAsAudience(code) {
+  cleanupListeners();
+
+  const sRef = db.ref('sessions/' + code);
+  sRef.on('value', snap => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+    currentSession = { code, ...data };
+    renderAudienceView(data);
+  });
+  listeners.push({ ref: sRef, event: 'value' });
+}
+
+function renderAudienceView(data) {
+  const waiting = document.getElementById('a-waiting');
+  const qArea = document.getElementById('a-question-area');
+  const voted = document.getElementById('a-voted');
+  const closed = document.getElementById('a-closed');
+  const ended = document.getElementById('a-ended');
+
+  waiting.style.display = 'none';
+  qArea.style.display = 'none';
+  voted.style.display = 'none';
+  closed.style.display = 'none';
+  ended.style.display = 'none';
+
+  if (data.status === 'ended') {
+    ended.style.display = 'block';
+    return;
+  }
+
+  if (data.status === 'waiting') {
+    // Check if voter already voted on this question
+    waiting.style.display = 'block';
+    waiting.querySelector('p').textContent = 'Waiting for the presenter to open voting...';
+    hasVotedThisQ = false;
+    return;
+  }
+
+  // Check if already voted on this question
+  const q = data.questions[data.currentQ];
+  const votes = data.votes && data.votes[data.currentQ] ? data.votes[data.currentQ] : {};
+  const alreadyVoted = votes[voterId] !== undefined;
+
+  if (alreadyVoted) {
+    voted.style.display = 'block';
+    hasVotedThisQ = true;
+    return;
+  }
+
+  if (data.status === 'closed') {
+    closed.style.display = 'block';
+    return;
+  }
+
+  // Show voting interface
+  qArea.style.display = 'block';
+  document.getElementById('a-q-text').textContent = q.text;
+
+  const mcOpts = document.getElementById('a-mc-options');
+  const ratingOpts = document.getElementById('a-rating-options');
+  mcOpts.style.display = 'none';
+  ratingOpts.style.display = 'none';
+
+  if (q.type === 'multiple_choice') {
+    mcOpts.style.display = 'flex';
+    mcOpts.innerHTML = q.options.map(opt => `
+      <button class="vote-option" onclick="castVote('${opt.replace(/'/g, "\\'")}')">${opt}</button>
+    `).join('');
+  } else {
+    ratingOpts.style.display = 'block';
+    ratingOpts.innerHTML = `
+      <div class="rating-buttons">
+        ${[1,2,3,4,5].map(n => `<button class="rating-btn" onclick="selectRating(${n}, this)">${n}</button>`).join('')}
+      </div>
+      <div class="rating-labels">
+        <span>${q.lowLabel || 'Low'}</span>
+        <span>${q.highLabel || 'High'}</span>
+      </div>
+      <button class="btn btn-primary" id="submit-rating-btn" onclick="castVote(selectedRating)" style="display:none;width:100%;">Submit</button>
+    `;
+  }
+}
+
+let selectedRating = null;
+function selectRating(n, btn) {
+  selectedRating = n;
+  document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('submit-rating-btn').style.display = 'block';
+}
+
+async function castVote(value) {
+  if (!firebaseReady || !currentSession || hasVotedThisQ) return;
+  if (value === null || value === undefined) return;
+
+  const code = currentSession.code;
+  const qIdx = currentSession.currentQ;
+
+  await db.ref('sessions/' + code + '/votes/' + qIdx + '/' + voterId).set({
+    value: String(value),
+    timestamp: Date.now()
+  });
+
+  hasVotedThisQ = true;
+  document.getElementById('a-question-area').style.display = 'none';
+  document.getElementById('a-voted').style.display = 'block';
+}
+
+// ââ RESULTS VIEW ââ
+function showResults() {
+  showView('results-view');
+  const container = document.getElementById('results-content');
+  const qs = currentSession.questions;
+  const votes = currentSession.votes || {};
+
+  container.innerHTML = qs.map((q, i) => {
+    const qVotes = votes[i] || {};
+    const voteList = Object.values(qVotes);
+
+    if (q.type === 'multiple_choice') {
+      const counts = {};
+      q.options.forEach(o => counts[o] = 0);
+      voteList.forEach(v => { if (counts[v.value] !== undefined) counts[v.value]++; });
+      const total = voteList.length;
+      return `<div class="result-card">
+        <h3>${q.text}</h3>
+        <div class="rc-type">Multiple Choice / ${total} responses</div>
+        <table>
+          <tr><th>Option</th><th>Votes</th><th>%</th></tr>
+          ${q.options.map(o => `<tr><td>${o}</td><td>${counts[o]}</td><td>${total ? Math.round(counts[o]/total*100) : 0}%</td></tr>`).join('')}
+        </table>
+      </div>`;
+    } else {
+      const dist = {1:0,2:0,3:0,4:0,5:0};
+      let sum = 0;
+      voteList.forEach(v => {
+        const n = parseInt(v.value);
+        if (n >= 1 && n <= 5) { dist[n]++; sum += n; }
+      });
+      const avg = voteList.length ? (sum / voteList.length).toFixed(1) : 'â';
+      return `<div class="result-card">
+        <h3>${q.text}</h3>
+        <div class="rc-type">Rating Scale / ${voteList.length} responses / Avg: ${avg}</div>
+        <table>
+          <tr><th>Rating</th><th>Count</th></tr>
+          ${[1,2,3,4,5].map(n => `<tr><td>${n}</td><td>${dist[n]}</td></tr>`).join('')}
+        </table>
+      </div>`;
+    }
+  }).join('');
+}
+
+function exportCSV() {
+  if (!currentSession) return;
+  const qs = currentSession.questions;
+  const votes = currentSession.votes || {};
+  let csv = 'Question,Type,Option/Rating,Count,Percentage\n';
+
+  qs.forEach((q, i) => {
+    const qVotes = votes[i] ? Object.values(votes[i]) : [];
+    const total = qVotes.length;
+
+    if (q.type === 'multiple_choice') {
+      const counts = {};
+      q.options.forEach(o => counts[o] = 0);
+      qVotes.forEach(v => { if (counts[v.value] !== undefined) counts[v.value]++; });
+      q.options.forEach(o => {
+        const pct = total ? Math.round(counts[o]/total*100) : 0;
+        csv += `"${q.text}",Multiple Choice,"${o}",${counts[o]},${pct}%\n`;
+      });
+    } else {
+      const dist = {1:0,2:0,3:0,4:0,5:0};
+      qVotes.forEach(v => {
+        const n = parseInt(v.value);
+        if (n >= 1 && n <= 5) dist[n]++;
+      });
+      [1,2,3,4,5].forEach(n => {
+        const pct = total ? Math.round(dist[n]/total*100) : 0;
+        csv += `"${q.text}",Rating Scale,${n},${dist[n]},${pct}%\n`;
+      });
+    }
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `poll-results-${currentSession.code}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ââ CLEANUP ââ
+function cleanupListeners() {
+  listeners.forEach(l => l.ref.off(l.event));
+  listeners = [];
+}
+
+// ââ HASH ROUTING (for direct join links) ââ
+function checkHash() {
+  const hash = location.hash;
+  if (hash.startsWith('#join/')) {
+    const code = hash.replace('#join/', '').toUpperCase();
+    document.getElementById('join-code').value = code;
+    joinSession();
+  }
+}
+window.addEventListener('hashchange', checkHash);
+window.addEventListener('load', checkHash);
+</script>
+</body>
+</html>
+
