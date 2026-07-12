@@ -2020,20 +2020,17 @@ async function launchSession() {
   if (!code) { alert('Could not claim a room code. Try again.'); return; }
 
   isPresenter = true;
-
-  // File the poll before the room opens. Capped at 6 seconds: a slow or dead
-  // Drive must never hold up a launch with a room already waiting.
-  try {
-    await Promise.race([
-      autoFilePoll(),
-      new Promise(resolve => setTimeout(resolve, 6000))
-    ]);
-  } catch(e) {
-    console.warn('Could not auto-file this poll:', e);
-  }
-
   rememberActiveSession(code, 'presenter', currentPollName);
+
+  // Room first. Filing the poll is bookkeeping, and bookkeeping does not get
+  // to hold up a QR code with people standing in front of it. This used to be
+  // awaited here, which meant a slow Drive call was six seconds of blank
+  // screen in a live room.
   showLobby(code);
+
+  autoFilePoll()
+    .then(() => rememberActiveSession(code, 'presenter', currentPollName))
+    .catch(e => console.warn('Could not auto-file this poll:', e));
 }
 
 function showLobby(code) {
