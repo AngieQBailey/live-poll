@@ -1955,6 +1955,7 @@ function renderTemplates() {
         </div>
         <div class="template-actions">
           <button onclick="event.stopPropagation(); loadTemplate(${i})">Use</button>
+          <button onclick="event.stopPropagation(); renameTemplate(${i})">Rename</button>
           <button class="delete-template" onclick="event.stopPropagation(); deleteTemplate(${i})">Delete</button>
         </div>
       </div>`;
@@ -1974,6 +1975,49 @@ function loadTemplate(idx) {
   currentPollName = t.name;
   renderQueue();
   document.getElementById('questions-queue').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Rename a saved poll. The poll name is what every future session folder is
+// built from, so this is the one piece of naming that is worth being able to
+// fix. Past session folders keep the name they were archived under.
+async function renameTemplate(idx) {
+  const t = pollLibrary[idx];
+  if (!t) return;
+
+  const next = (prompt('Rename this poll:', t.name) || '').trim();
+  if (!next || next === t.name) return;
+
+  const clash = pollLibrary.some((p, i) => i !== idx && p.name.toLowerCase() === next.toLowerCase());
+  if (clash) { alert('You already have a poll called "' + next + '". Pick another name.'); return; }
+
+  const previous = t.name;
+
+  if (driveConnected() && t.driveFileId) {
+    try {
+      await driveFetch('https://www.googleapis.com/drive/v3/files/' + t.driveFileId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: next + '.livepoll.json' })
+      });
+      // The name lives in the file body too, not just the filename.
+      await driveUploadFile(
+        next + '.livepoll.json',
+        'application/json',
+        JSON.stringify({ name: next, questions: t.questions, createdAt: t.createdAt }, null, 2),
+        driveFolders.polls,
+        t.driveFileId
+      );
+    } catch(e) {
+      console.error('Drive rename failed:', e);
+      alert('Could not rename in Drive. Nothing was changed.');
+      return;
+    }
+  }
+
+  t.name = next;
+  if (currentPollName === previous) currentPollName = next;
+  setLocalPolls(pollLibrary.map(p => ({ name: p.name, questions: p.questions, createdAt: p.createdAt })));
+  renderTemplates();
 }
 
 async function deleteTemplate(idx) {
