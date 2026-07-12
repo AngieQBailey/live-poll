@@ -31,7 +31,7 @@ One file. `index.html` holds the markup, the CSS and the JavaScript. There is no
 
 The only backend is a Firebase Realtime Database (project `live-poll-33579`). Sessions, votes and participants live there. Nothing else runs on a server.
 
-Optional: Google Drive, for saving reusable polls and archiving results. The app works without it.
+Google Drive holds the reusable polls and the results archive. It is authorised by the presenter's sign-in, not as a separate step.
 
 ### Dependencies (all CDN, all pinned except fonts)
 
@@ -48,9 +48,9 @@ Optional: Google Drive, for saving reusable polls and archiving results. The app
 
 **Presenter**
 
-1. Open the site, click **Create Session**.
+1. Open `/#present` and sign in with Google. This unlocks the builder and connects Drive in one action.
 2. Pick a saved poll, or build questions: multiple choice (2 to 6 options) or a 1 to 5 rating scale with your own end labels. Ten questions max.
-3. **Save Poll** if you want it back later. **Launch Session** to go live.
+3. **Save Poll** to give it a name you will recognise later. Launching files it either way, so an unsaved poll can no longer be lost. **Launch Session** to go live.
 4. The lobby shows a QR code, the 4-character room code and a live count of who has joined. Wait for the count, then **Start Polling**.
 5. Per question: **Open Voting**, watch the bars fill, **Close Voting**, **Next Question**.
 6. **End Session**. Results are archived to Drive automatically if Drive is connected. **Export CSV** gives you a local copy either way.
