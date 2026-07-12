@@ -2726,7 +2726,7 @@ function renderFullSummary(container, session, myUid, compact) {
         <span class="vc-opt">Split: ${winners.map(w => escapeHTML(shortLabel(w))).join(' / ')}</span></div>`;
     } else {
       verdict = `<div class="vc-lead"><span class="vc-pct">${pct(winners[0])}%</span>
-        <span class="vc-opt">${escapeHTML(winners[0])}</span></div>`;
+        <span class="vc-opt">${escapeHTML(shortLabel(winners[0]))}</span></div>`;
     }
 
     // One bar, not five. Each option is a slice; yours is outlined.
