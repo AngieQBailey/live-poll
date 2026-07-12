@@ -958,6 +958,62 @@
     .templates-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
   }
 
+  /* ── The room, as seen from a phone ── */
+  .audience-results {
+    width: 100%;
+    max-width: 460px;
+    margin: 1.5rem auto 0;
+    text-align: left;
+  }
+  .ar-total {
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(245,245,220,0.45);
+    margin-bottom: 0.9rem;
+    text-align: center;
+  }
+  .ar-row { margin-bottom: 0.85rem; }
+  .ar-label {
+    font-family: var(--font-evidence);
+    font-size: 0.95rem;
+    color: rgba(245,245,220,0.75);
+    margin-bottom: 0.3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .ar-row.is-mine .ar-label { color: var(--ecru-wool); font-weight: 600; }
+  .ar-you {
+    font-family: var(--font-clue);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--quetzal-bright);
+    white-space: nowrap;
+  }
+  .ar-track {
+    position: relative;
+    height: 10px;
+    background: rgba(245,245,220,0.08);
+    overflow: hidden;
+  }
+  .ar-fill {
+    height: 100%;
+    background: var(--quetzal);
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .ar-fill.is-lead { background: var(--quetzal-bright); }
+  .ar-row.is-mine .ar-track { box-shadow: 0 0 0 1px var(--quetzal-bright); }
+  .ar-count {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: rgba(245,245,220,0.5);
+    margin-top: 0.2rem;
+  }
+
   /* ── Lobby must fit one screen (measured: 264px of it was margin) ── */
   #presenter-lobby .lobby-instruction      { margin-bottom: 1rem; }
   #presenter-lobby .lobby-qr-wrap          { margin-bottom: 1rem; }
@@ -1262,11 +1318,13 @@
 
   <div id="a-voted" class="voted-confirmation" style="display:none;">
     <div class="check">&#10003;</div>
-    <p>Response recorded. Waiting for next question...</p>
+    <p id="a-voted-label">Response recorded. The room so far&hellip;</p>
+    <div id="a-results" class="audience-results"></div>
   </div>
 
   <div id="a-closed" class="audience-waiting" style="display:none;">
     <p>Voting is closed for this question.</p>
+    <div id="a-results-closed" class="audience-results"></div>
   </div>
 
   <div id="a-ended" class="audience-waiting" style="display:none;">
@@ -2670,13 +2728,24 @@ function renderAudienceView(data) {
   // registered in the UI, and every vote was thrown away before it was written.
   hasVotedThisQ = alreadyVoted;
 
+  // Once you have answered, the wait is not dead air: you watch the room decide.
+  // This re-renders on every snapshot, and the session listener carries the
+  // votes, so the bars move in real time without any extra subscription.
   if (alreadyVoted) {
     voted.style.display = 'block';
+    const label = document.getElementById('a-voted-label');
+    if (label) {
+      label.textContent = (data.status === 'voting')
+        ? 'Response recorded. The room so far…'
+        : 'Voting closed. Here is the room.';
+    }
+    renderAudienceResults(document.getElementById('a-results'), q, votes, votes[voterId].value);
     return;
   }
 
   if (data.status === 'closed') {
     closed.style.display = 'block';
+    renderAudienceResults(document.getElementById('a-results-closed'), q, votes, null);
     return;
   }
 
@@ -2716,6 +2785,55 @@ function renderAudienceView(data) {
       <button class="btn btn-primary" id="submit-rating-btn" onclick="castVote(selectedRating)" style="display:none;width:100%;padding:1rem;">Submit</button>
     `;
   }
+}
+
+// The audience's own view of the tally. Deliberately not the presenter's chart:
+// this is a phone, held at arm's length, in a dim room. Big numbers, short bars,
+// and your own answer called out so you can find yourself in the room.
+function renderAudienceResults(container, q, votes, myValue) {
+  if (!container) return;
+  const list = Object.values(votes || {});
+  const total = list.length;
+
+  if (q.type === 'multiple_choice') {
+    const counts = {};
+    q.options.forEach(o => counts[o] = 0);
+    list.forEach(v => { if (counts[v.value] !== undefined) counts[v.value]++; });
+    const max = Math.max(...Object.values(counts), 1);
+
+    container.innerHTML = `
+      <div class="ar-total">${total} ${total === 1 ? 'response' : 'responses'}</div>
+      ${q.options.map(opt => {
+        const c = counts[opt];
+        const pct = total ? Math.round(c / total * 100) : 0;
+        const mine = myValue !== null && opt === myValue;
+        const lead = c === max && c > 0;
+        return `<div class="ar-row ${mine ? 'is-mine' : ''}">
+          <div class="ar-label">${escapeHTML(opt)}${mine ? '<span class="ar-you">your answer</span>' : ''}</div>
+          <div class="ar-track"><div class="ar-fill ${lead ? 'is-lead' : ''}" style="width:${pct}%"></div></div>
+          <div class="ar-count">${pct}%</div>
+        </div>`;
+      }).join('')}`;
+    return;
+  }
+
+  // Rating scale
+  const dist = {1:0,2:0,3:0,4:0,5:0};
+  let sum = 0;
+  list.forEach(v => { const n = parseInt(v.value); if (n >= 1 && n <= 5) { dist[n]++; sum += n; } });
+  const avg = total ? (sum / total).toFixed(1) : '—';
+  const max = Math.max(...Object.values(dist), 1);
+  container.innerHTML = `
+    <div class="ar-total">${total} ${total === 1 ? 'response' : 'responses'} &middot; average ${avg}</div>
+    ${[1,2,3,4,5].map(n => {
+      const pct = total ? Math.round(dist[n] / total * 100) : 0;
+      const mine = myValue !== null && String(n) === String(myValue);
+      return `<div class="ar-row ${mine ? 'is-mine' : ''}">
+        <div class="ar-label">${n}${mine ? '<span class="ar-you">your answer</span>' : ''}</div>
+        <div class="ar-track"><div class="ar-fill ${dist[n] === max && dist[n] > 0 ? 'is-lead' : ''}" style="width:${pct}%"></div></div>
+        <div class="ar-count">${pct}%</div>
+      </div>`;
+    }).join('')}`;
 }
 
 let selectedRating = null;
