@@ -1,6 +1,6 @@
 # Live Poll
 
-Real-time audience polling for workshops and talks. Presenter builds questions, audience joins with a 4-character code or a QR scan, results fill in live on the projected screen.
+Real-time audience polling for workshops and talks. The presenter builds questions, the audience joins with a 4-character code or a QR scan, and everyone watches the room decide on their own phone.
 
 Live at **https://angieqbailey.github.io/live-poll/**
 
@@ -52,7 +52,7 @@ Google Drive holds the reusable polls and the results archive. It is authorised 
 1. Open `/#present` and sign in with Google. This unlocks the builder and connects Drive in one action.
 2. Pick a saved poll, or build questions: multiple choice (2 to 6 options) or a 1 to 5 rating scale with your own end labels. Ten questions max.
 3. **Save Poll** to give it a name you will recognise later. Launching files it either way, so an unsaved poll can no longer be lost. **Launch Session** to go live.
-4. The lobby shows a QR code, the 4-character room code and a live count of who has joined. Wait for the count, then **Start Polling**.
+4. The QR screen shows the code, a live count of who has joined, and how many have already answered question 1. **Question 1 is open from the moment you launch**, so people can answer as they arrive. **Show Results** moves your own screen to the tally; it does not gate the room.
 5. Per question: watch the bars fill, **Close Voting** to lock it, **Next Question**. Voting opens automatically on every question.
 6. On the last question, **Show Final Results** puts the whole poll on every screen.
 7. **End Session**. Results are archived to Drive automatically if Drive is connected. **Export CSV** gives you a local copy either way.
@@ -66,6 +66,8 @@ They see results only after they answer: the live tally for the question they ju
 ### If the presenter tab reloads or crashes
 
 Recovery is automatic. The room code is written to `localStorage`, and on load the app checks whether that session is still alive and walks back into it. Only the browser that created the session can drive it. The banner across the top offers a way out if you want to abandon the room and start fresh. The record expires after 12 hours.
+
+Audience devices do **not** store a resume record. Their way back in is the `#join/CODE` hash, which joining writes into the URL, so a refresh rejoins on its own. (A stored record used to silently rejoin a stale room while someone was typing a fresh code.)
 
 ---
 
@@ -107,7 +109,7 @@ Polls are editable and reusable. Sessions are dated, immutable records of one ro
 
 Any polls already saved in a browser are lifted into Drive on first sign-in. Nothing is lost.
 
-The Drive token lasts about an hour and is held in `sessionStorage`, so a tab reload will not make you sign in again. A new day will. `Reconnect Drive` in the builder refreshes it without a full sign-in.
+The Drive token lasts about an hour and is held in `localStorage`, so a new tab keeps it. (It used to live in `sessionStorage`, which is per-tab: a second tab looked signed in while quietly having no Drive, and the results archive would fail.) A new day needs a new sign-in. `Reconnect Drive` in the builder runs the same Google popup.
 
 ---
 
