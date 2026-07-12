@@ -2629,9 +2629,15 @@ function renderAudienceView(data) {
   const votes = data.votes && data.votes[data.currentQ] ? data.votes[data.currentQ] : {};
   const alreadyVoted = votes[voterId] !== undefined;
 
+  // Derive the "already voted" flag from the data, every render, rather than
+  // remembering it. It used to be cleared only when the session passed through
+  // the old "waiting" state, which auto-open voting removed. The flag then
+  // stayed true from question 1 onward: the ballot still drew, taps still
+  // registered in the UI, and every vote was thrown away before it was written.
+  hasVotedThisQ = alreadyVoted;
+
   if (alreadyVoted) {
     voted.style.display = 'block';
-    hasVotedThisQ = true;
     return;
   }
 
@@ -2687,11 +2693,16 @@ function selectRating(n, btn) {
 }
 
 async function castVote(value) {
-  if (!firebaseReady || !currentSession || hasVotedThisQ) return;
+  if (!firebaseReady || !currentSession) return;
   if (value === null || value === undefined) return;
+  if (hasVotedThisQ) return;                 // their ✓ screen is already up
+
   // Voting used to be "closed" only by hiding the buttons. A stale tab could
   // still write. The database rules enforce this now; the client agrees.
-  if (currentSession.status !== 'voting') return;
+  if (currentSession.status !== 'voting') {
+    showAudienceState('a-closed');
+    return;
+  }
 
   const code = currentSession.code;
   const qIdx = currentSession.currentQ;
@@ -2702,13 +2713,32 @@ async function castVote(value) {
       timestamp: Date.now()
     });
   } catch(e) {
+    // Never fail silently on a phone. A tap that does nothing is the worst
+    // outcome in the room: the voter assumes it worked and it did not.
     console.error('Vote rejected:', e);
+    const q = document.getElementById('a-question-area');
+    let err = document.getElementById('a-vote-error');
+    if (!err) {
+      err = document.createElement('p');
+      err.id = 'a-vote-error';
+      err.style.cssText = 'color:var(--valentino);font-family:var(--font-clue);font-size:0.85rem;margin-top:1rem;text-align:center;';
+      q.appendChild(err);
+    }
+    err.textContent = 'That did not go through. Tap again.';
     return;
   }
 
   hasVotedThisQ = true;
   document.getElementById('a-question-area').style.display = 'none';
   document.getElementById('a-voted').style.display = 'block';
+}
+
+// Single place that owns which audience panel is on screen.
+function showAudienceState(id) {
+  ['a-waiting', 'a-question-area', 'a-voted', 'a-closed', 'a-ended'].forEach(x => {
+    const el = document.getElementById(x);
+    if (el) el.style.display = (x === id) ? 'block' : 'none';
+  });
 }
 
 // ── RESULTS VIEW ──
