@@ -1934,6 +1934,65 @@ async function saveTemplate() {
   hideSaveTemplatePrompt();
 }
 
+// ── AUTO-FILE THE POLL AT LAUNCH ──
+// A poll you launched but never hit "Save Poll" on used to be unrecoverable:
+// the questions went into the session archive, which the builder cannot read
+// back. Launching now files the poll into the library on its own. It never
+// overwrites an existing entry, and it never blocks the launch.
+function questionsSignature(qs) {
+  return JSON.stringify((qs || []).map(q => q.type === 'multiple_choice'
+    ? ['mc', q.text, q.options]
+    : ['rs', q.text, q.lowLabel, q.highLabel]));
+}
+
+async function autoFilePoll() {
+  if (driveConnected() && !pollLibrary.length) {
+    try { await refreshLibrary(); } catch(e) {}
+  }
+
+  // Already in the library, unchanged? Nothing to do.
+  const sig = questionsSignature(questionsQueue);
+  const match = pollLibrary.find(p => questionsSignature(p.questions) === sig);
+  if (match) { currentPollName = match.name; return; }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const named = currentPollName && currentPollName !== 'Untitled Poll' ? currentPollName : null;
+  const taken = n => pollLibrary.some(p => p.name.toLowerCase() === n.toLowerCase());
+
+  let name;
+  if (named && taken(named)) {
+    // Edited a saved poll and launched without saving. Keep the original intact.
+    name = named + ' (edited ' + stamp + ')';
+  } else if (named) {
+    name = named;
+  } else {
+    name = 'Untitled Poll ' + stamp + ' ' + new Date().toTimeString().slice(0, 5).replace(':', '');
+  }
+  let candidate = name, n = 2;
+  while (taken(candidate)) candidate = name + ' ' + n++;
+  name = candidate;
+
+  const record = {
+    name,
+    questions: JSON.parse(JSON.stringify(questionsQueue)),
+    createdAt: Date.now()
+  };
+
+  if (driveConnected()) {
+    if (!driveFolders.polls) await ensureDriveFolders();
+    record.driveFileId = await driveUploadFile(
+      name + '.livepoll.json',
+      'application/json',
+      JSON.stringify({ name, questions: record.questions, createdAt: record.createdAt }, null, 2),
+      driveFolders.polls
+    );
+  }
+
+  pollLibrary.unshift(record);
+  setLocalPolls(pollLibrary.map(p => ({ name: p.name, questions: p.questions, createdAt: p.createdAt })));
+  currentPollName = name;
+}
+
 // ── LAUNCH SESSION → LOBBY ──
 async function launchSession() {
   if (!firebaseReady) { alert('Cannot reach the polling service.'); return; }
@@ -1961,6 +2020,18 @@ async function launchSession() {
   if (!code) { alert('Could not claim a room code. Try again.'); return; }
 
   isPresenter = true;
+
+  // File the poll before the room opens. Capped at 6 seconds: a slow or dead
+  // Drive must never hold up a launch with a room already waiting.
+  try {
+    await Promise.race([
+      autoFilePoll(),
+      new Promise(resolve => setTimeout(resolve, 6000))
+    ]);
+  } catch(e) {
+    console.warn('Could not auto-file this poll:', e);
+  }
+
   rememberActiveSession(code, 'presenter', currentPollName);
   showLobby(code);
 }
