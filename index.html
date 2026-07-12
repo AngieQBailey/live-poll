@@ -958,6 +958,75 @@
     .templates-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
   }
 
+
+  /* ── Verdict cards: the room's takeaway, on a phone ── */
+  .vc {
+    border-left: 2px solid rgba(0,168,150,0.35);
+    padding: 0 0 0 1rem;
+    margin-bottom: 1.9rem;
+    text-align: left;
+  }
+  .vc-q {
+    font-family: var(--font-clue);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(245,245,220,0.45);
+    margin-bottom: 0.45rem;
+  }
+  .vc-lead {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+  }
+  .vc-pct {
+    font-family: var(--font-verdict);
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--quetzal-bright);
+    line-height: 1;
+  }
+  .vc-opt {
+    font-family: var(--font-evidence);
+    font-size: 1rem;
+    color: var(--ecru-wool);
+    line-height: 1.25;
+  }
+  .vc-none { font-family: var(--font-clue); font-size: 0.85rem; color: rgba(245,245,220,0.35); margin-bottom: 0.6rem; }
+  .vc-bar {
+    display: flex;
+    height: 8px;
+    width: 100%;
+    background: rgba(245,245,220,0.06);
+    overflow: hidden;
+    margin-bottom: 0.55rem;
+  }
+  .vc-slice { display: block; height: 100%; background: rgba(0,168,150,0.35); }
+  .vc-slice.is-win { background: var(--quetzal-bright); }
+  .vc-slice.is-mine { box-shadow: inset 0 0 0 2px var(--ecru-wool); }
+  .vc-you {
+    font-family: var(--font-clue);
+    font-size: 0.78rem;
+    color: rgba(245,245,220,0.6);
+  }
+  .vc-you.vc-with { color: var(--quetzal-bright); }
+  .vc-you.vc-skip { color: rgba(245,245,220,0.3); }
+  .vc-more {
+    margin-top: 0.5rem;
+    background: none;
+    border: none;
+    padding: 0.2rem 0;
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--quetzal-bright);
+    cursor: pointer;
+    opacity: 0.75;
+  }
+  .vc-detail { margin-top: 0.5rem; }
+
   /* ── Whole-poll summary (both screens) ── */
   #a-summary { width: 100%; max-width: 520px; margin: 0 auto; text-align: center; }
   #a-summary .audience-results { margin-top: 0.75rem; }
@@ -1357,7 +1426,7 @@
 
   <div id="a-summary" style="display:none;">
     <div class="audience-question" style="font-size:1.6rem;margin-bottom:0.5rem;">How the room answered</div>
-    <p style="font-family:var(--font-clue);font-size:0.8rem;color:rgba(245,245,220,0.45);margin-bottom:2rem;">Every question. Your own answers are marked.</p>
+    <p style="font-family:var(--font-clue);font-size:0.8rem;color:rgba(245,245,220,0.45);margin-bottom:2rem;">Where the room landed, and where you did.</p>
     <div id="a-summary-body"></div>
   </div>
 
@@ -2608,23 +2677,114 @@ async function showFinalResults() {
 
 // Every question, one after another. Used on both screens; the audience passes
 // its own uid so its answers get called out, the presenter passes null.
-function renderFullSummary(container, session, myUid) {
+// Two audiences, two summaries.
+//
+// The presenter gets every bar: it is a laptop and it is her data.
+// The room gets a verdict per question. Five questions of five options each is
+// more than twenty bars on a phone, which is a data dump, not a takeaway. What
+// a person wants at the end is "what did the room say, and was I with them".
+// The full breakdown is one tap away for anyone who wants it.
+function renderFullSummary(container, session, myUid, compact) {
   if (!container) return;
   const qs = session.questions || [];
   const votes = session.votes || {};
+
+  if (!compact) {
+    container.innerHTML = qs.map((q, i) => `<div class="summary-block">
+        <div class="summary-q">${escapeHTML(q.text)}</div>
+        <div class="summary-bars" id="sum-${i}"></div>
+      </div>`).join('');
+    qs.forEach((q, i) => {
+      const v = votes[i] || {};
+      const mine = myUid && v[myUid] ? v[myUid].value : null;
+      renderAudienceResults(document.getElementById('sum-' + i), q, v, mine);
+    });
+    return;
+  }
+
   container.innerHTML = qs.map((q, i) => {
     const v = votes[i] || {};
+    const list = Object.values(v);
+    const total = list.length;
     const mine = myUid && v[myUid] ? v[myUid].value : null;
-    return `<div class="summary-block">
-      <div class="summary-q">${escapeHTML(q.text)}</div>
-      <div class="summary-bars" id="sum-${i}"></div>
+
+    const labels = (q.type === 'multiple_choice') ? q.options : ['1','2','3','4','5'];
+    const counts = {};
+    labels.forEach(o => counts[o] = 0);
+    list.forEach(x => { if (counts[x.value] !== undefined) counts[x.value]++; });
+
+    const max = Math.max(...Object.values(counts), 0);
+    const winners = labels.filter(o => counts[o] === max && max > 0);
+    const pct = o => total ? Math.round(counts[o] / total * 100) : 0;
+
+    // The headline. A tie is a real answer, so say so rather than picking one.
+    let verdict;
+    if (total === 0) {
+      verdict = '<div class="vc-none">No answers</div>';
+    } else if (winners.length > 1) {
+      verdict = `<div class="vc-lead"><span class="vc-pct">${pct(winners[0])}%</span>
+        <span class="vc-opt">Split: ${winners.map(w => escapeHTML(shortLabel(w))).join(' / ')}</span></div>`;
+    } else {
+      verdict = `<div class="vc-lead"><span class="vc-pct">${pct(winners[0])}%</span>
+        <span class="vc-opt">${escapeHTML(winners[0])}</span></div>`;
+    }
+
+    // One bar, not five. Each option is a slice; yours is outlined.
+    const slices = labels.filter(o => counts[o] > 0).map(o => {
+      const w = total ? (counts[o] / total * 100) : 0;
+      const isWin = counts[o] === max;
+      const isMine = mine !== null && o === mine;
+      return `<span class="vc-slice ${isWin ? 'is-win' : ''} ${isMine ? 'is-mine' : ''}"
+                    style="width:${w}%" title="${escapeHTML(o)}"></span>`;
+    }).join('');
+
+    let you;
+    if (mine === null) {
+      you = '<div class="vc-you vc-skip">You did not answer this one</div>';
+    } else if (counts[mine] === max) {
+      you = '<div class="vc-you vc-with">You went with the room</div>';
+    } else {
+      you = `<div class="vc-you">You said: <strong>${escapeHTML(shortLabel(mine))}</strong> &middot; ${pct(mine)}% agreed</div>`;
+    }
+
+    return `<div class="vc">
+      <div class="vc-q">${escapeHTML(q.short || q.text)}</div>
+      ${verdict}
+      <div class="vc-bar">${slices}</div>
+      ${you}
+      <button class="vc-more" onclick="toggleSummaryDetail(${i}, this)">See all answers</button>
+      <div class="vc-detail" id="vc-detail-${i}" style="display:none;"></div>
     </div>`;
   }).join('');
-  qs.forEach((q, i) => {
-    const v = votes[i] || {};
-    const mine = myUid && v[myUid] ? v[myUid].value : null;
-    renderAudienceResults(document.getElementById('sum-' + i), q, v, mine);
-  });
+
+  // Stash what the detail views will need, rendered only when asked for.
+  container.__session = session;
+  container.__myUid = myUid;
+}
+
+// Options are written to be read aloud, not to fit on a phone. For the headline
+// and the "you said" line, cut at the colon: "Duck: calm on the surface..." → "Duck".
+function shortLabel(s) {
+  const i = String(s).indexOf(':');
+  return (i > 0 && i < 22) ? String(s).slice(0, i) : String(s);
+}
+
+function toggleSummaryDetail(i, btn) {
+  const wrap = document.getElementById('a-summary-body');
+  const box = document.getElementById('vc-detail-' + i);
+  if (!box || !wrap || !wrap.__session) return;
+  const open = box.style.display !== 'none';
+  if (open) {
+    box.style.display = 'none';
+    btn.textContent = 'See all answers';
+    return;
+  }
+  const s = wrap.__session;
+  const v = (s.votes || {})[i] || {};
+  const mine = wrap.__myUid && v[wrap.__myUid] ? v[wrap.__myUid].value : null;
+  renderAudienceResults(box, s.questions[i], v, mine);
+  box.style.display = 'block';
+  btn.textContent = 'Hide';
 }
 
 function renderMCResults(q, votes) {
@@ -2792,7 +2952,7 @@ function renderAudienceView(data) {
     const sum = document.getElementById('a-summary');
     if (sum) {
       sum.style.display = 'block';
-      renderFullSummary(document.getElementById('a-summary-body'), { ...data, code: currentSession.code }, voterId);
+      renderFullSummary(document.getElementById('a-summary-body'), { ...data, code: currentSession.code }, voterId, true);
     }
     return;
   }
