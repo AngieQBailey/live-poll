@@ -20,6 +20,7 @@ The presenter sign-in carries the `drive.file` scope, so authorising the present
 All of this is already done on project `live-poll-33579`. Recorded here so it can be rebuilt.
 
 1. **Firebase → Authentication → Sign-in method:** **Anonymous** enabled (the audience) and **Google** enabled (the presenter). Both are required. Anonymous alone breaks presenting; Google alone breaks voting.
+1b. **Firebase → Authentication → Settings → Authorized domains:** `angieqbailey.github.io` added. Firebase keeps its own domain allowlist for sign-in popups, **separate** from the Authorized JavaScript origins in Google Cloud. Setting the Cloud origin is not enough. Miss this and the presenter sign-in fails with `auth/unauthorized-domain`.
 2. **Firebase → Realtime Database → Rules:** the contents of `database.rules.json`, published.
 3. **Google Cloud → Drive API:** enabled, OAuth consent screen in Testing, `drive.file` scope, Angie as the sole test user, web client restricted to the `angieqbailey.github.io` origin.
 
