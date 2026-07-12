@@ -122,13 +122,20 @@
   input:focus {
     border-color: var(--quetzal-bright);
   }
+  /* This box was wider than the card that holds it: 260px of field plus its own
+     padding and border, inside 260px of usable card. It bled out of the frame.
+     border-box makes the declared width include the padding. The text-indent
+     cancels the trailing letter-space, which otherwise shoves the code left. */
   .code-input {
     font-size: 2.4rem !important;
     letter-spacing: 0.5em;
+    text-indent: 0.5em;
     text-align: center;
     text-transform: uppercase;
+    box-sizing: border-box;
+    width: 100%;
     max-width: 260px;
-    padding: 1rem 1.2rem !important;
+    padding: 1rem 0.8rem !important;
     border-width: 2px;
   }
 
@@ -1165,7 +1172,8 @@
   <button class="lobby-copy-btn" id="lobby-copy-btn" onclick="copyJoinLink()">Copy Link</button>
   <div class="lobby-participants" id="lobby-count">0</div>
   <div class="lobby-participants-label">participants joined</div>
-  <button class="lobby-start-btn" onclick="startFirstQuestion()">Start Polling</button>
+  <div class="lobby-participants-label" id="lobby-answered" style="margin-top:0.75rem;color:var(--quetzal-bright);">Question 1 is already open. They can answer as they arrive.</div>
+  <button class="lobby-start-btn" onclick="startFirstQuestion()">Show Results</button>
 </div>
 
 <!-- ═══════════ PRESENTER (DURING QUESTIONS) ═══════════ -->
@@ -1848,10 +1856,14 @@ async function joinSession(codeArg) {
 // The presenter's session used to live only in a JS variable. One refresh
 // and the room was stranded. Now the code is written down, and on boot we
 // walk back into whatever is still running.
-function rememberActiveSession(code, role, pollName) {
+function rememberActiveSession(code, role, pollName, phase) {
   try {
+    const prev = getActiveSession();
     localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
-      code, role, pollName: pollName || currentPollName, ts: Date.now()
+      code, role,
+      pollName: pollName || currentPollName,
+      phase: phase || (prev && prev.code === code ? prev.phase : 'lobby'),
+      ts: Date.now()
     }));
   } catch(e) {}
 }
@@ -1904,7 +1916,7 @@ async function resumeActiveSession() {
     // Only the account that created the session can drive it.
     if (data.owner && data.owner !== voterId) { forgetActiveSession(); return false; }
     isPresenter = true;
-    if (data.status === 'lobby') {
+    if ((active.phase || 'lobby') === 'lobby' && data.status !== 'ended') {
       showLobby(active.code);
     } else {
       showView('presenter');
@@ -2242,7 +2254,7 @@ async function launchSession() {
         owner: voterId,
         questions: questionsQueue,
         currentQ: 0,
-        status: 'lobby',
+        status: 'voting',
         createdAt: Date.now()
       };
     });
@@ -2275,6 +2287,20 @@ function showLobby(code) {
   window.addEventListener('resize', lobbyResizeHandler);
 
   listenForParticipants(code);
+
+  // Question 1 is live while this screen is up, so show the answers landing.
+  // Otherwise the presenter is watching a QR code with no idea the room has
+  // already started voting.
+  const aRef = db.ref('sessions/' + code + '/votes/0');
+  aRef.on('value', snap => {
+    const n = snap.exists() ? Object.keys(snap.val()).length : 0;
+    const el = document.getElementById('lobby-answered');
+    if (!el) return;
+    el.textContent = n === 0
+      ? 'Question 1 is already open. They can answer as they arrive.'
+      : n + (n === 1 ? ' person has' : ' people have') + ' already answered question 1.';
+  });
+  listeners.push({ ref: aRef, event: 'value' });
 }
 
 function drawLobbyQR(joinURL) {
@@ -2309,11 +2335,10 @@ function listenForParticipants(code) {
 function startFirstQuestion() {
   const code = currentSession.code;
 
-  // Update status in Firebase
-  db.ref('sessions/' + code + '/status').set('waiting');
-  currentSession.status = 'waiting';
+  // No status write. The room has been votable since launch; this button only
+  // moves the presenter from the QR screen to the results screen.
+  rememberActiveSession(code, 'presenter', currentPollName, 'live');
 
-  // Switch to presenter question view
   showView('presenter');
   document.getElementById('p-room-code').textContent = code;
 
@@ -2322,7 +2347,7 @@ function startFirstQuestion() {
   generateQRCode(document.getElementById('header-qr'), joinURL, 52);
 
   listenAsPresenter(code);
-  showPresenterState('waiting');
+  showPresenterQuestion();
 }
 
 // ── PRESENTER LOGIC ──
@@ -2502,10 +2527,10 @@ async function nextQuestion() {
 
   await db.ref('sessions/' + code).update({
     currentQ: nextQ,
-    status: 'waiting'
+    status: 'voting'
   });
   currentSession.currentQ = nextQ;
-  currentSession.status = 'waiting';
+  currentSession.status = 'voting';
 
   cleanupListeners();
   listenForParticipants(code);
