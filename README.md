@@ -53,12 +53,15 @@ Google Drive holds the reusable polls and the results archive. It is authorised 
 2. Pick a saved poll, or build questions: multiple choice (2 to 6 options) or a 1 to 5 rating scale with your own end labels. Ten questions max.
 3. **Save Poll** to give it a name you will recognise later. Launching files it either way, so an unsaved poll can no longer be lost. **Launch Session** to go live.
 4. The lobby shows a QR code, the 4-character room code and a live count of who has joined. Wait for the count, then **Start Polling**.
-5. Per question: **Open Voting**, watch the bars fill, **Close Voting**, **Next Question**.
-6. **End Session**. Results are archived to Drive automatically if Drive is connected. **Export CSV** gives you a local copy either way.
+5. Per question: watch the bars fill, **Close Voting** to lock it, **Next Question**. Voting opens automatically on every question.
+6. On the last question, **Show Final Results** puts the whole poll on every screen.
+7. **End Session**. Results are archived to Drive automatically if Drive is connected. **Export CSV** gives you a local copy either way.
 
 **Audience**
 
 Scan the QR, or open the link, or type the code on the landing page. No name, no signup, no app. One vote per question per browser.
+
+They see results only after they answer: the live tally for the question they just voted on, then the whole poll once the presenter shows the final results. Someone who skips a question sees nothing for it.
 
 ### If the presenter tab reloads or crashes
 
@@ -119,7 +122,8 @@ What the rules enforce:
 - **Sign-in required.** The audience is signed in anonymously on load. There is no login screen; they never see it.
 - **Only the presenter drives.** The session records the creator's `uid` as `owner`. Only that account can change `status` or `currentQ`.
 - **Questions are frozen at launch.** They can be written once, at creation, and never edited afterward.
-- **One vote per person per question**, keyed by auth uid, and **only while voting is open**. Closing voting is now enforced by the database, not by hiding the buttons.
+- **One vote per person per question**, keyed by auth uid, and **only while voting is open**. Closing voting is enforced by the database, not by hiding the buttons.
+- **A vote must be for the question that is live.** You cannot back-fill a question the presenter already closed and discussed, and you cannot vote ahead. Without this, a phone asleep on an old ballot could change a number the room had already been told.
 
 Sessions are never deleted, by design of these rules. Nothing cleans up old rooms.
 
@@ -146,7 +150,9 @@ sessions/
       <uid>: { joined: 1751328050000 }
 ```
 
-Status runs: `lobby → waiting → voting ⇄ closed → waiting → … → ended`. Terminal at `ended`.
+Status runs: `voting ⇄ closed → voting → … → summary → ended`. Terminal at `ended`.
+
+A room is `voting` from the moment it launches, so the audience can answer question 1 with no presenter action. `summary` means polling is over and every screen is showing the whole poll; voting is refused in that state. The presenter's own view of "lobby versus live" is a client-side flag, not a database status.
 
 Rating scales are hardcoded to 1 through 5. The `min` and `max` fields are written but never read.
 
@@ -167,6 +173,15 @@ Rating scales are hardcoded to 1 through 5. The `min` and `max` fields are writt
 **2026-07-12 — v2.1**
 
 - Launching a poll files it into the Polls library automatically. Previously a poll launched without hitting Save Poll was unrecoverable: its questions went into the session archive, which the builder cannot read back. Auto-filing never overwrites an existing entry (an edited version of a saved poll lands as `[name] (edited [date])`) and is capped at 6 seconds so a slow Drive cannot stall a launch with a room already waiting.
+
+**2026-07-12 — v3.3**
+
+- The room is votable from launch. No Open Voting step, on any question.
+- Voters see the live tally for a question once they answer it, own answer marked, and nothing at all if they sat the question out.
+- **Show Final Results** on the last question puts the whole poll on every screen until the session ends.
+- Votes must belong to the question that is currently live.
+- No fake local identity when sign-in is slow. A device that cannot be identified is stopped at the door rather than shown a ballot it cannot submit.
+- Verified end to end, including the Drive archive.
 
 **2026-07-12 — v3**
 
