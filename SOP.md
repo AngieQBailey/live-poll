@@ -58,11 +58,26 @@ Save Poll still matters for one thing: giving it a name you will recognise in si
 - [ ] **Show Results** when you are ready to talk about it. This moves your screen only. It does not gate the room.
 - [ ] Per question: watch the bars fill → **Close Voting** when you want to lock it → talk about it → **Next Question**.
 - [ ] **Next Question opens voting for that question automatically.** There is no Open Voting step to forget.
-- [ ] **End Session** when you are done. This is the step that writes the results to Drive.
+- [ ] On the last question the button changes to **Show Final Results**. Click it when the room is done answering.
+- [ ] **End Session** last. That is the step that writes the results to Drive.
+
+### What the room sees on their phones
+
+They only ever see results **after they answer**. Someone who sits a question out gets nothing for that question. Nobody sees the tally before they commit.
+
+1. Tap an answer → the checkmark screen becomes the **live tally for that question**, moving as more people answer, with their own answer marked.
+2. That stays up until you press **Next Question**, which replaces it with the new ballot.
+3. When you press **Show Final Results**, every phone switches to **the whole poll**: every question, every result, their own answers marked. Voting is locked, so nothing moves while they read.
+4. That summary holds until you **End Session**, which replaces it with a thank-you.
+
+Two consequences worth planning around:
+
+- **The room knows each result before you say it.** You are no longer revealing a number, you are reacting to one they already have. That is usually better, but it changes how you set up a punchline.
+- **The final summary is the room's takeaway screen.** Leave it up while you talk. It is the only moment they see the whole picture, and it disappears the second you end the session.
 
 ## After
 
-- [ ] Read the line under "Session ended." It tells you whether the archive landed in Drive.
+- [ ] Read the line under "Session ended." It tells you whether the archive landed in Drive.  Verified working: it names the exact folder it wrote to.
 - [ ] If it says the archive failed, click **Export CSV** before you close the tab. The data is still in the database, but nothing else will file it for you.
 - [ ] Results live in Drive at **Live Poll / Sessions / [date] [poll name] (CODE)**.
 
@@ -98,3 +113,5 @@ They cannot. Only your Google account can create a session, enforced by the data
 - Questions cannot be edited after you hit Launch. Proofread before, not during.
 - Launching opens the room. If you launch an hour early, people can answer question 1 an hour early. Launch when you are ready for them.
 - Signing in is what unlocks the builder AND Drive. If something feels broken, check that first.
+- Avoid colons in a poll name. Drive cannot use them in a folder name and swaps them for a hyphen, so the archive folder will not read exactly like the poll.
+- The presenter screen is yours, not the projector's. It shows results the moment a question opens. Do not mirror it if you want the room to stay honest.
