@@ -154,6 +154,10 @@ Rating scales are hardcoded to 1 through 5. The `min` and `max` fields are writt
 
 ## Changelog
 
+**2026-07-12 — v2.1**
+
+- Launching a poll files it into the Polls library automatically. Previously a poll launched without hitting Save Poll was unrecoverable: its questions went into the session archive, which the builder cannot read back. Auto-filing never overwrites an existing entry (an edited version of a saved poll lands as `[name] (edited [date])`) and is capped at 6 seconds so a slow Drive cannot stall a launch with a room already waiting.
+
 **2026-07-12 — v2**
 
 - Presenter session survives a page reload. Was: refresh killed the room and stranded the audience.
