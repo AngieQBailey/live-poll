@@ -1349,7 +1349,7 @@ async function presenterSignIn() {
 async function presenterSignOut() {
   if (!confirm('Sign out? Any session you are running keeps running.')) return;
   driveToken = null;
-  try { sessionStorage.removeItem('lp_drive_token'); } catch(e) {}
+  try { localStorage.removeItem('lp_drive_token'); } catch(e) {}
   await firebase.auth().signOut();
   location.hash = '';
   location.reload();
@@ -1487,7 +1487,7 @@ function driveConnected() {
 
 function loadStoredToken() {
   try {
-    const raw = sessionStorage.getItem('lp_drive_token');
+    const raw = localStorage.getItem('lp_drive_token');
     if (!raw) return;
     const t = JSON.parse(raw);
     if (t.expiresAt > Date.now() + 30000) driveToken = t;
@@ -1496,7 +1496,7 @@ function loadStoredToken() {
 
 function storeToken(t) {
   driveToken = t;
-  try { sessionStorage.setItem('lp_drive_token', JSON.stringify(t)); } catch(e) {}
+  try { localStorage.setItem('lp_drive_token', JSON.stringify(t)); } catch(e) {}
 }
 
 function initTokenClient() {
@@ -1558,7 +1558,7 @@ async function driveFetch(url, options = {}) {
   const resp = await fetch(url, Object.assign({}, options, { headers }));
   if (resp.status === 401) {
     driveToken = null;
-    try { sessionStorage.removeItem('lp_drive_token'); } catch(e) {}
+    try { localStorage.removeItem('lp_drive_token'); } catch(e) {}
     setDriveChip('Drive session expired. Reconnect.', false);
     throw new Error('Drive token expired');
   }
