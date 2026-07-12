@@ -1337,45 +1337,80 @@ let voterId = null;           // = firebase auth uid. Set after sign-in.
 const PRESENTER_EMAIL = "angiebaileycomo@gmail.com";
 let isPresenterAccount = false;
 
+// There is NO local-id fallback any more, and that is deliberate.
+//
+// The old code handed out a random local id if anonymous sign-in had not
+// finished within six seconds. That predates the security rules. Once the
+// rules required the vote key to equal auth.uid, a local id became a
+// guaranteed PERMISSION_DENIED: on a slow phone the timeout fired, the voter
+// got a fake identity, the ballot rendered anyway, and every tap was rejected
+// forever, retries included. A fake identity is worse than no identity,
+// because it looks like it works.
+//
+// Now: retry the sign-in with backoff, and if it truly fails, say so instead
+// of pretending. No ballot is ever shown to someone who cannot vote.
+let authFailed = false;
+
 const authPromise = new Promise(resolve => {
   const settle = () => { authReady = true; resolve(voterId); };
-  const fallback = () => {
-    voterId = localStorage.getItem('lp_voter_id') || generateId();
-    localStorage.setItem('lp_voter_id', voterId);
+  const giveUp = () => {
+    authFailed = true;
+    voterId = null;
     settle();
+    renderConnectionState();
   };
+
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
     firebaseReady = true;
 
-    let decided = false;
+    let attempts = 0;
+    const trySignIn = () => {
+      attempts++;
+      firebase.auth().signInAnonymously().catch(e => {
+        console.warn('Anonymous sign-in attempt ' + attempts + ' failed:', e.code || e);
+        if (attempts < 4) setTimeout(trySignIn, attempts * 1500);
+        else giveUp();
+      });
+    };
+
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
+        authFailed = false;
         voterId = user.uid;
         isPresenterAccount = !user.isAnonymous && user.email === PRESENTER_EMAIL;
         renderAuthState();
         renderDriveWarning();
-        if (!decided) { decided = true; settle(); }
-      } else if (!decided) {
-        // Nobody signed in. Take an anonymous identity so the audience can
-        // vote. A presenter upgrades from here via the Google popup.
-        decided = true;
-        firebase.auth().signInAnonymously().catch(e => {
-          console.warn("Anonymous sign-in unavailable, using local id:", e.code || e);
-          fallback();
-        });
+        renderConnectionState();
+        if (!authReady) settle();
+      } else if (attempts === 0) {
+        trySignIn();
       }
     });
 
-    // Never hang the UI on a slow or misconfigured auth handshake.
-    setTimeout(() => { if (!authReady) fallback(); }, 6000);
+    // A slow handshake is not a failure. Only give up after the retries have
+    // had a real chance.
+    setTimeout(() => { if (!authReady && !voterId) giveUp(); }, 20000);
   } catch(e) {
     console.error("Firebase init error:", e);
-    document.getElementById('config-banner').classList.add('show');
-    fallback();
+    giveUp();
   }
 });
+
+// One honest signal, shown to the audience. If we cannot identify this device
+// to the database, the vote cannot be recorded, so do not pretend otherwise.
+function renderConnectionState() {
+  const badge = document.getElementById('a-connected-badge');
+  const banner = document.getElementById('config-banner');
+  const bad = authFailed || !voterId;
+  if (badge) {
+    badge.innerHTML = bad
+      ? '<span class="green-dot" style="background:var(--valentino);"></span> Not connected'
+      : '<span class="green-dot"></span> Connected';
+  }
+  if (banner) banner.classList.toggle('show', !!authFailed);
+}
 
 // ── PRESENTER SIGN-IN ──
 async function presenterSignIn() {
@@ -1832,6 +1867,12 @@ window.addEventListener('load', () => {
 async function joinSession(codeArg) {
   if (!firebaseReady) { alert('Cannot reach the polling service.'); return; }
   await authPromise;
+  if (!voterId) {
+    // No identity means the database will reject every vote. Do not let someone
+    // into a ballot they cannot submit.
+    showJoinError('Cannot connect. Check your signal and reload the page.');
+    return;
+  }
   const code = (codeArg || document.getElementById('join-code').value).trim().toUpperCase();
   if (code.length !== 4) {
     showJoinError('Enter a 4-character room code.');
@@ -2697,6 +2738,11 @@ async function castVote(value) {
   if (value === null || value === undefined) return;
   if (hasVotedThisQ) return;                 // their ✓ screen is already up
 
+  if (!voterId) {
+    showVoteError('Not connected. Reload the page and rejoin.');
+    return;
+  }
+
   // Voting used to be "closed" only by hiding the buttons. A stale tab could
   // still write. The database rules enforce this now; the client agrees.
   if (currentSession.status !== 'voting') {
@@ -2716,21 +2762,27 @@ async function castVote(value) {
     // Never fail silently on a phone. A tap that does nothing is the worst
     // outcome in the room: the voter assumes it worked and it did not.
     console.error('Vote rejected:', e);
-    const q = document.getElementById('a-question-area');
-    let err = document.getElementById('a-vote-error');
-    if (!err) {
-      err = document.createElement('p');
-      err.id = 'a-vote-error';
-      err.style.cssText = 'color:var(--valentino);font-family:var(--font-clue);font-size:0.85rem;margin-top:1rem;text-align:center;';
-      q.appendChild(err);
-    }
-    err.textContent = 'That did not go through. Tap again.';
+    showVoteError(e.code === 'PERMISSION_DENIED'
+      ? 'Not connected. Reload the page and rejoin.'
+      : 'That did not go through. Tap again.');
     return;
   }
 
   hasVotedThisQ = true;
   document.getElementById('a-question-area').style.display = 'none';
   document.getElementById('a-voted').style.display = 'block';
+}
+
+function showVoteError(msg) {
+  const q = document.getElementById('a-question-area');
+  let err = document.getElementById('a-vote-error');
+  if (!err) {
+    err = document.createElement('p');
+    err.id = 'a-vote-error';
+    err.style.cssText = 'color:var(--valentino);font-family:var(--font-clue);font-size:0.9rem;margin-top:1rem;text-align:center;';
+    q.appendChild(err);
+  }
+  err.textContent = msg;
 }
 
 // Single place that owns which audience panel is on screen.
