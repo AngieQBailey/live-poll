@@ -174,8 +174,10 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    padding: 3vh 4vw;
+    max-height: 100vh;
+    padding: 2vh 4vw;
     text-align: center;
+    gap: 0;
   }
   .lobby-instruction {
     font-family: var(--font-clue);
@@ -187,9 +189,9 @@
   }
   .lobby-qr-wrap {
     background: #fff;
-    padding: 20px;
+    padding: 16px;
     display: inline-block;
-    margin-bottom: 2rem;
+    margin-bottom: 1.2rem;
     box-shadow: 0 0 60px rgba(0,168,150,0.15);
   }
   .lobby-qr-wrap canvas, .lobby-qr-wrap img {
@@ -197,7 +199,7 @@
   }
   .lobby-room-code {
     font-family: var(--font-clue);
-    font-size: clamp(5rem, 12vw, 10rem);
+    font-size: clamp(3.5rem, 9vh, 8rem);
     font-weight: 700;
     color: var(--ecru-wool);
     letter-spacing: 0.25em;
@@ -238,7 +240,7 @@
   }
   .lobby-participants {
     font-family: var(--font-verdict);
-    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-size: clamp(1.6rem, 3.5vh, 3rem);
     font-weight: 700;
     color: var(--ecru-wool);
     line-height: 1;
@@ -2304,7 +2306,10 @@ function showLobby(code) {
 }
 
 function drawLobbyQR(joinURL) {
-  const qrSize = Math.min(280, Math.max(160, Math.floor(window.innerWidth * 0.35)));
+  // Height is what runs out on a laptop, not width. Size against both.
+  const byWidth  = Math.floor(window.innerWidth * 0.35);
+  const byHeight = Math.floor(window.innerHeight * 0.34);
+  const qrSize = Math.min(280, Math.max(150, Math.min(byWidth, byHeight)));
   generateQRCode(document.getElementById('lobby-qr'), joinURL, qrSize);
 }
 
