@@ -63,6 +63,8 @@ Scan the QR, or open the link, or type the code on the landing page. No name, no
 
 They see results only after they answer: the live tally for the question they just voted on, then the whole poll once the presenter shows the final results. Someone who skips a question sees nothing for it.
 
+The final screen is one verdict card per question, not a wall of bars: short label, winning answer, a single segmented bar, and whether they were with the room. Full breakdown behind a tap. A question can carry an optional `short` label for this screen, set in the builder; without one the full question text is used. The presenter keeps the detailed view.
+
 ### If the presenter tab reloads or crashes
 
 Recovery is automatic. The room code is written to `localStorage`, and on load the app checks whether that session is still alive and walks back into it. Only the browser that created the session can drive it. The banner across the top offers a way out if you want to abandon the room and start fresh. The record expires after 12 hours.
