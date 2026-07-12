@@ -1900,7 +1900,6 @@ async function joinSession(codeArg) {
   if (location.hash !== '#join/' + code) {
     history.replaceState(null, '', '#join/' + code);
   }
-  rememberActiveSession(code, 'audience');
 
   showView('audience');
   listenAsAudience(code);
@@ -1948,6 +1947,7 @@ function discardActiveSession() {
 async function resumeActiveSession() {
   const active = getActiveSession();
   if (!active || !firebaseReady) return false;
+  if (active.role !== 'presenter') { forgetActiveSession(); return false; }
 
   const bar = document.getElementById('resume-bar');
   document.getElementById('resume-text').textContent = 'Reconnecting to session ' + active.code + '…';
@@ -1983,14 +1983,7 @@ async function resumeActiveSession() {
     return true;
   }
 
-  // Audience
-  isPresenter = false;
-  const pRef = db.ref('sessions/' + active.code + '/participants/' + voterId);
-  pRef.set({ joined: Date.now() });
-  pRef.onDisconnect().remove();
-  showView('audience');
-  listenAsAudience(active.code);
-  return true;
+  return false;
 }
 
 function showJoinError(msg) {
