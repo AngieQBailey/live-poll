@@ -1415,7 +1415,12 @@ async function presenterSignIn() {
 function renderDriveWarning() {
   const bar = document.getElementById('drive-warning');
   if (!bar) return;
-  const show = isPresenterAccount && driveConfigured() && !driveConnected();
+  // Builder only. The presenter screen is on a projector: a red infrastructure
+  // banner in front of a room is worse than the problem it reports. Fix it
+  // before you go live; after that, the End Session note is the safety net.
+  const inBuilder = document.querySelector('.view.active') &&
+                    document.querySelector('.view.active').id === 'setup';
+  const show = inBuilder && isPresenterAccount && driveConfigured() && !driveConnected();
   bar.classList.toggle('show', show);
   document.body.classList.toggle('warn-offset', show);
 }
@@ -1490,6 +1495,8 @@ function showView(id) {
       if (el) el.focus();
     }, 100);
   }
+  if (typeof renderDriveWarning === 'function') renderDriveWarning();
+
   // Render saved polls when setup view opens
   if (id === 'setup') {
     hideSaveTemplatePrompt();
