@@ -989,18 +989,15 @@
   <button onclick="discardActiveSession()">Start fresh instead</button>
 </div>
 
-<!-- ═══════════ LANDING ═══════════ -->
+<!-- ═══════════ LANDING (audience only) ═══════════ -->
+<!-- The presenter card used to live here. It is gone. The builder is reached
+     at #present and is gated on a Google sign-in, so this page has nothing
+     on it that the audience cannot use. -->
 <div id="landing" class="view active">
   <div class="brand-mark">Live Poll</div>
-  <h1>What does the room think?</h1>
+  <h1>What&rsquo;s the room think?</h1>
   <p class="subtitle">Real-time polling for presentations and classrooms. No accounts, no downloads.</p>
   <div class="landing-actions">
-    <div class="action-card">
-      <div class="step-hint">Presenter</div>
-      <h2>Create Polls</h2>
-      <p>Build your questions and launch a live session. Results display in real time.</p>
-      <button class="btn btn-primary" onclick="showView('setup')">Create Session</button>
-    </div>
     <div class="action-card vote-card">
       <div class="step-hint">Audience</div>
       <h2>Join &amp; Vote</h2>
@@ -1014,6 +1011,18 @@
   </div>
 </div>
 
+<!-- ═══════════ PRESENTER GATE (#present) ═══════════ -->
+<div id="presenter-gate" class="view">
+  <div class="brand-mark">Live Poll</div>
+  <h1>Presenter</h1>
+  <p class="subtitle">Sign in to build and run a session. This also connects Google Drive, so your polls and results file themselves.</p>
+  <div style="margin-top:2rem;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+    <button class="btn btn-primary" id="presenter-signin-btn" onclick="presenterSignIn()" style="padding:1rem 2rem;">Sign in with Google</button>
+    <p id="gate-error" style="color:var(--valentino);font-family:var(--font-clue);font-size:0.85rem;max-width:420px;text-align:center;display:none;"></p>
+    <button class="btn btn-secondary btn-small" onclick="showView('landing')">Back</button>
+  </div>
+</div>
+
 <!-- ═══════════ SETUP (CREATE POLLS) ═══════════ -->
 <div id="setup" class="view">
   <h1>Build Your Polls</h1>
@@ -1023,8 +1032,10 @@
     <div class="templates-header">
       <h3>Saved Polls</h3>
       <div class="drive-status">
+        <span id="signed-in-as" class="drive-chip connected" style="display:none;"></span>
         <span id="drive-chip" class="drive-chip">Saved on this device only</span>
-        <button class="btn btn-secondary btn-small" id="drive-connect-btn" onclick="connectDrive()">Connect Drive</button>
+        <button class="btn btn-secondary btn-small" id="drive-connect-btn" onclick="connectDrive()">Reconnect Drive</button>
+        <button class="btn btn-secondary btn-small" id="signout-btn" onclick="presenterSignOut()" style="display:none;">Sign out</button>
       </div>
     </div>
     <div id="templates-list"></div>
@@ -1144,7 +1155,7 @@
       <div style="display:flex;gap:1rem;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="showResults()">View Results</button>
         <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
-        <button class="btn btn-secondary" onclick="showView('landing')">New Session</button>
+        <button class="btn btn-secondary" onclick="newSession()">New Session</button>
       </div>
     </div>
   </div>
@@ -1189,7 +1200,7 @@
   <div id="results-content"></div>
   <div style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;">
     <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
-    <button class="btn btn-secondary" onclick="showView('landing')">Done</button>
+    <button class="btn btn-secondary" onclick="newSession()">Done</button>
   </div>
 </div>
 
@@ -1233,33 +1244,49 @@ let firebaseReady = false;
 let authReady = false;        // resolves once anonymous sign-in completes
 let voterId = null;           // = firebase auth uid. Set after sign-in.
 
-// Anonymous sign-in gives every browser a stable identity the database can
-// trust, which is what lets the rules say "one vote per person, presenter
-// only" instead of trusting the client. If the Anonymous provider is not
-// enabled in the Firebase console yet, we fall back to a random local id and
-// keep running, so this file is safe to deploy before that switch is flipped.
+// Two kinds of user.
+//
+//   Audience  → anonymous. No sign-in, no friction, but a real uid the
+//               database can pin a vote to.
+//   Presenter → Angie's Google account, and only hers. The rules refuse to
+//               create a session for anyone else, so hiding the builder is
+//               backed by enforcement rather than by obscurity.
+//
+// The same Google sign-in carries the Drive scope, so authorising the
+// presenter and connecting Drive are one action instead of two.
+const PRESENTER_EMAIL = "angiebaileycomo@gmail.com";
+let isPresenterAccount = false;
+
 const authPromise = new Promise(resolve => {
+  const settle = () => { authReady = true; resolve(voterId); };
   const fallback = () => {
     voterId = localStorage.getItem('lp_voter_id') || generateId();
     localStorage.setItem('lp_voter_id', voterId);
-    authReady = true;
-    resolve(voterId);
+    settle();
   };
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
     firebaseReady = true;
+
+    let decided = false;
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         voterId = user.uid;
-        authReady = true;
-        resolve(user.uid);
+        isPresenterAccount = !user.isAnonymous && user.email === PRESENTER_EMAIL;
+        renderAuthState();
+        if (!decided) { decided = true; settle(); }
+      } else if (!decided) {
+        // Nobody signed in. Take an anonymous identity so the audience can
+        // vote. A presenter upgrades from here via the Google popup.
+        decided = true;
+        firebase.auth().signInAnonymously().catch(e => {
+          console.warn("Anonymous sign-in unavailable, using local id:", e.code || e);
+          fallback();
+        });
       }
     });
-    firebase.auth().signInAnonymously().catch(e => {
-      console.warn("Anonymous sign-in unavailable, using local id:", e.code || e);
-      fallback();
-    });
+
     // Never hang the UI on a slow or misconfigured auth handshake.
     setTimeout(() => { if (!authReady) fallback(); }, 6000);
   } catch(e) {
@@ -1268,6 +1295,79 @@ const authPromise = new Promise(resolve => {
     fallback();
   }
 });
+
+// ── PRESENTER SIGN-IN ──
+async function presenterSignIn() {
+  const err = document.getElementById('gate-error');
+  const btn = document.getElementById('presenter-signin-btn');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope(DRIVE_SCOPE);
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await firebase.auth().signInWithPopup(provider);
+
+    if (result.user.email !== PRESENTER_EMAIL) {
+      // The rules would reject this account anyway. Say so plainly here
+      // rather than letting someone build a poll that cannot launch.
+      await firebase.auth().signOut();
+      throw new Error('That account cannot create polls. This app has one presenter.');
+    }
+
+    // The sign-in hands back a Drive token. No second popup needed.
+    const token = result.credential && result.credential.accessToken;
+    if (token) {
+      storeToken({ value: token, expiresAt: Date.now() + 3600 * 1000 });
+      try {
+        await ensureDriveFolders();
+        await migrateLocalPollsToDrive();
+      } catch(e) { console.warn('Drive setup deferred:', e); }
+    }
+
+    openBuilder();
+  } catch(e) {
+    console.error('Presenter sign-in failed:', e);
+    err.textContent = e.message || 'Sign-in failed. Try again.';
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in with Google';
+  }
+}
+
+async function presenterSignOut() {
+  if (!confirm('Sign out? Any session you are running keeps running.')) return;
+  driveToken = null;
+  try { sessionStorage.removeItem('lp_drive_token'); } catch(e) {}
+  await firebase.auth().signOut();
+  location.hash = '';
+  location.reload();
+}
+
+// The gate. Reached at #present, and the only door into the builder.
+async function presenterGate() {
+  showView('presenter-gate');
+  await authPromise;
+  if (isPresenterAccount) openBuilder();
+}
+
+function openBuilder() {
+  if (!isPresenterAccount) { showView('presenter-gate'); return; }
+  showView('setup');
+}
+
+function renderAuthState() {
+  const who = document.getElementById('signed-in-as');
+  if (who) {
+    who.textContent = isPresenterAccount ? PRESENTER_EMAIL : '';
+    who.style.display = isPresenterAccount ? 'inline' : 'none';
+  }
+  const out = document.getElementById('signout-btn');
+  if (out) out.style.display = isPresenterAccount ? 'inline-block' : 'none';
+}
 
 // ── State ──
 let currentSession = null;
@@ -2533,6 +2633,17 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+function newSession() {
+  cleanupListeners();
+  currentSession = null;
+  questionsQueue = [];
+  currentPollName = 'Untitled Poll';
+  renderQueue();
+  forgetActiveSession();
+  history.replaceState(null, '', location.pathname + '#present');
+  if (isPresenterAccount) openBuilder(); else showView('landing');
+}
+
 // ── CLEANUP ──
 function cleanupListeners() {
   listeners.forEach(l => l.ref.off(l.event));
@@ -2540,13 +2651,17 @@ function cleanupListeners() {
   if (voteListener) { voteListener.ref.off(voteListener.event); voteListener = null; }
 }
 
-// ── HASH ROUTING (for direct join links) ──
+// ── HASH ROUTING ──
+//   #join/CODE  → audience, auto-join
+//   #present    → presenter gate. Bookmark this one.
 function checkHash() {
   const hash = location.hash;
   if (hash.startsWith('#join/')) {
     const code = hash.replace('#join/', '').toUpperCase();
     document.getElementById('join-code').value = code;
     joinSession(code);
+  } else if (hash === '#present') {
+    presenterGate();
   }
 }
 window.addEventListener('hashchange', checkHash);
