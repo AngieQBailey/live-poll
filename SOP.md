@@ -19,8 +19,9 @@ Running the same poll twice is safe. Each run gets a new room code and its own d
 
 ### If you edited the questions
 
-- **Same poll, corrected:** click **Save Poll**, keep the name, confirm the overwrite. The old version is gone.
-- **A variant for a different room:** click **Save Poll** and give it a **new** name. Otherwise you quietly destroy the original.
+Do nothing. Launch. The edit is filed for you as `[name] (edited [date])` and **the original is never touched.** You end up with both.
+
+The only way to destroy the old version is to click **Save Poll**, keep the same name, and confirm the overwrite. That takes a deliberate yes, so you will not do it by accident.
 
 ### If a poll is missing from the list
 
