@@ -2,41 +2,39 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "sessions": {
       ".read": false,
       ".write": false,
-
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && !data.exists()",
+        ".write": "auth != null && !data.exists() && auth.token.email == 'angiebaileycomo@gmail.com' && auth.token.email_verified == true",
         ".validate": "newData.hasChildren(['code', 'owner', 'questions', 'status'])",
-
-        "code":      { ".validate": "newData.isString() && newData.val().length == 4" },
-        "owner":     { ".validate": "newData.val() == auth.uid" },
-        "createdAt": { ".validate": "newData.isNumber()" },
-
-        "questions": {
-          ".write": "auth != null && !data.exists()"
+        "code": {
+          ".validate": "newData.isString() && newData.val().length == 4"
         },
-
+        "owner": {
+          ".validate": "newData.val() == auth.uid"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "questions": {
+          ".write": "auth != null && !data.exists() && auth.token.email == 'angiebaileycomo@gmail.com'"
+        },
         "status": {
           ".write": "auth != null && root.child('sessions').child($code).child('owner').val() == auth.uid",
           ".validate": "newData.isString() && newData.val().matches(/^(lobby|waiting|voting|closed|ended)$/)"
         },
-
         "currentQ": {
           ".write": "auth != null && root.child('sessions').child($code).child('owner').val() == auth.uid",
           ".validate": "newData.isNumber()"
         },
-
         "participants": {
           "$uid": {
             ".write": "auth != null && $uid == auth.uid",
             ".validate": "newData.hasChild('joined')"
           }
         },
-
         "votes": {
           "$q": {
             "$uid": {
