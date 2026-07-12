@@ -1274,6 +1274,9 @@
       <label>Question</label>
       <input type="text" id="q-text" placeholder="e.g., What's your biggest operational constraint?">
 
+      <label>Short label <span style="opacity:0.5;text-transform:none;letter-spacing:0;">optional, for the final results screen</span></label>
+      <input type="text" id="q-short" placeholder="e.g., Biggest constraint" maxlength="40">
+
       <div id="mc-fields">
         <label>Options</label>
         <div id="options-list" class="options-list">
@@ -2188,6 +2191,11 @@ function addQuestion() {
 
   const q = { type, text };
 
+  // Questions are written to be spoken. On the phone summary a short label
+  // reads better than the whole question again. Optional; falls back to the text.
+  const shortLabel = document.getElementById('q-short').value.trim();
+  if (shortLabel) q.short = shortLabel;
+
   if (type === 'multiple_choice') {
     const inputs = document.querySelectorAll('#options-list .option-input');
     const opts = [];
@@ -2204,6 +2212,7 @@ function addQuestion() {
   questionsQueue.push(q);
   renderQueue();
   document.getElementById('q-text').value = '';
+  document.getElementById('q-short').value = '';
   document.querySelectorAll('#options-list .option-input').forEach(i => i.value = '');
 }
 
@@ -2229,6 +2238,7 @@ function renderQueue() {
       <div class="qq-info">
         <div class="qq-type">${q.type === 'multiple_choice' ? 'Multiple Choice' : 'Rating Scale'}</div>
         <div class="qq-text">${escapeHTML(q.text)}</div>
+        ${q.short ? `<div class="qq-type" style="opacity:0.6;">summary label: ${escapeHTML(q.short)}</div>` : ''}
       </div>
       <button class="btn btn-secondary btn-small" onclick="removeQuestion(${i})">&times;</button>
     </div>
