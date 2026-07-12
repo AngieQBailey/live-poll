@@ -1323,8 +1323,7 @@
   </div>
 
   <div id="a-closed" class="audience-waiting" style="display:none;">
-    <p>Voting is closed for this question.</p>
-    <div id="a-results-closed" class="audience-results"></div>
+    <p>Voting is closed for this question. You did not answer this one.</p>
   </div>
 
   <div id="a-ended" class="audience-waiting" style="display:none;">
@@ -2745,7 +2744,6 @@ function renderAudienceView(data) {
 
   if (data.status === 'closed') {
     closed.style.display = 'block';
-    renderAudienceResults(document.getElementById('a-results-closed'), q, votes, null);
     return;
   }
 
