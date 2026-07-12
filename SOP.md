@@ -24,9 +24,11 @@ Running the same poll twice is safe. Each run gets a new room code and its own d
 
 ### If a poll is missing from the list
 
-Check the chip. Nine times out of ten it says "Not connected to Drive" and your library is simply not loaded yet.
+Check the chip. It almost certainly says "Not connected to Drive," and your library is simply not loaded yet. Connect, and your polls appear.
 
-If it is connected and the poll is still gone, you never clicked **Save Poll** on it. A poll you launched but never saved is not reusable. The questions from that day are sitting in `Live Poll / Sessions / [date] ... / questions.json`, but the app cannot read them back in. You would rebuild it by hand. This is the one sharp edge left in the tool.
+You cannot lose a poll by forgetting to save it. **Launching a poll files it automatically.** If you never clicked Save Poll, look for it under the name you gave it, or under `Untitled Poll [date] [time]` if you never named it. Launching an edited version of a saved poll files it as `[name] (edited [date])` and leaves the original untouched.
+
+Save Poll still matters for one thing: giving it a name you will recognise in six months.
 
 ---
 
@@ -34,7 +36,7 @@ If it is connected and the poll is still gone, you never clicked **Save Poll** o
 
 - [ ] Open the app, click **Create Session**, connect Drive.
 - [ ] Build the questions. Ten max, 2 to 6 options each.
-- [ ] Click **Save Poll** and name it. **Do this before you launch.** It is the step that means you never build this poll again.
+- [ ] Click **Save Poll** and name it. Launching would file it for you anyway, but then it lands under a date-stamped name you will not recognise later. Name it now.
 - [ ] Do not launch yet. Launching creates a live room.
 
 ## Ten minutes before you present
