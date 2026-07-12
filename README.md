@@ -6,14 +6,22 @@ Live at **https://angieqbailey.github.io/live-poll/**
 
 ---
 
-## Console switches this build expects
+## Two doors
 
-Two things live outside the repo. The app degrades gracefully without them, but it is not secure until both are done.
+- **Audience:** `/` — a join box. Nothing else. No way into the builder.
+- **Presenter:** `/#present` — a Google sign-in, then the builder.
 
-1. **Firebase console → Authentication → Sign-in method → enable Anonymous.** Without it, the app falls back to a random local id and the security rules will reject every write once they are published. Do this **before** publishing the rules.
-2. **Firebase console → Realtime Database → Rules →** paste `database.rules.json` and publish.
+Only `angiebaileycomo@gmail.com` can create a session, and that is enforced by the database rules, not by hiding the button. Anyone can find `#present` in the page source; it will not help them.
 
-Optional, and separate: [Connecting Google Drive](#connecting-google-drive).
+The presenter sign-in carries the `drive.file` scope, so authorising the presenter and connecting Drive are one action.
+
+## Console state this build expects
+
+All of this is already done on project `live-poll-33579`. Recorded here so it can be rebuilt.
+
+1. **Firebase → Authentication → Sign-in method:** **Anonymous** enabled (the audience) and **Google** enabled (the presenter). Both are required. Anonymous alone breaks presenting; Google alone breaks voting.
+2. **Firebase → Realtime Database → Rules:** the contents of `database.rules.json`, published.
+3. **Google Cloud → Drive API:** enabled, OAuth consent screen in Testing, `drive.file` scope, Angie as the sole test user, web client restricted to the `angieqbailey.github.io` origin.
 
 ---
 
@@ -77,7 +85,7 @@ Live Poll/
 
 Polls are editable and reusable. Sessions are dated, immutable records of one room on one day. They stay separate on purpose.
 
-### One-time setup
+### Setup (already done, recorded for a rebuild)
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and select project **live-poll-33579** (the Firebase project is already a Cloud project, so use it rather than making a new one).
 2. **APIs & Services → Library →** search "Google Drive API" → **Enable**.
@@ -91,11 +99,11 @@ Polls are editable and reusable. Sessions are dated, immutable records of one ro
    ```js
    const GOOGLE_CLIENT_ID = "182821462877-xxxxxxxx.apps.googleusercontent.com";
    ```
-7. Commit and push. Open the site, go to Create Session, click **Connect Drive**, sign in once.
+7. Commit and push. Open `/#present` and sign in with Google. The same sign-in grants Drive; there is no separate connect step.
 
-Any polls already saved in that browser are lifted into Drive on first connect. Nothing is lost.
+Any polls already saved in a browser are lifted into Drive on first sign-in. Nothing is lost.
 
-The access token lasts about an hour and is held in `sessionStorage`, so a tab reload will not make you sign in again. A new day will.
+The Drive token lasts about an hour and is held in `sessionStorage`, so a tab reload will not make you sign in again. A new day will. `Reconnect Drive` in the builder refreshes it without a full sign-in.
 
 ---
 
@@ -105,8 +113,9 @@ The access token lasts about an hour and is held in `sessionStorage`, so a tab r
 
 What the rules enforce:
 
-- **No bulk reads.** `/sessions` cannot be listed. You have to know a room code to read a room. Before this, one request returned every poll ever run.
-- **Sign-in required.** The app signs in anonymously on load. There is no login screen; the audience never sees it.
+- **Only the presenter creates.** A session can be written only by a signed-in user whose verified email is `angiebaileycomo@gmail.com`. An anonymous visitor who finds `#present` and pokes at the database gets `PERMISSION_DENIED`.
+- **No bulk reads.** `/sessions` cannot be listed. You have to know a room code to read a room.
+- **Sign-in required.** The audience is signed in anonymously on load. There is no login screen; they never see it.
 - **Only the presenter drives.** The session records the creator's `uid` as `owner`. Only that account can change `status` or `currentQ`.
 - **Questions are frozen at launch.** They can be written once, at creation, and never edited afterward.
 - **One vote per person per question**, keyed by auth uid, and **only while voting is open**. Closing voting is now enforced by the database, not by hiding the buttons.
@@ -157,6 +166,14 @@ Rating scales are hardcoded to 1 through 5. The `min` and `max` fields are writt
 **2026-07-12 — v2.1**
 
 - Launching a poll files it into the Polls library automatically. Previously a poll launched without hitting Save Poll was unrecoverable: its questions went into the session archive, which the builder cannot read back. Auto-filing never overwrites an existing entry (an edited version of a saved poll lands as `[name] (edited [date])`) and is capped at 6 seconds so a slow Drive cannot stall a launch with a room already waiting.
+
+**2026-07-12 — v3**
+
+- Presenter is a gated Google sign-in at `#present`. The landing page is audience-only.
+- Database rules refuse to create a session for any account but the presenter's. Hiding the builder is now backed by enforcement.
+- The presenter sign-in carries the Drive scope, so "Connect Drive" is no longer a separate step.
+- Launching a poll files it to the library automatically. An unsaved poll can no longer be lost.
+- Headline is now "What's the room think?"
 
 **2026-07-12 — v2**
 
