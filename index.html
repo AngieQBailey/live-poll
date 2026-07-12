@@ -932,13 +932,61 @@
     #setup { padding: 3vh 5vw; }
     .lobby-qr-wrap { padding: 12px; }
     .vote-option { padding: 1rem 1.2rem; font-size: 1rem; }
+    .templates-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  }
+
+  /* ── Drive status (added v2) ── */
+  .drive-status { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .drive-chip {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid rgba(245,245,220,0.2);
+    color: rgba(245,245,220,0.5);
+    white-space: nowrap;
+  }
+  .drive-chip.connected {
+    border-color: var(--quetzal-bright);
+    color: var(--quetzal-bright);
+  }
+  .drive-chip.working { opacity: 0.6; }
+  .resume-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: var(--quetzal-bright);
+    color: #121A28;
+    font-family: var(--font-clue);
+    font-size: 0.8rem;
+    padding: 0.6rem 1rem;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .resume-bar.show { display: flex; }
+  .resume-bar button {
+    background: #121A28;
+    color: #F5F5DC;
+    border: none;
+    padding: 0.35rem 0.8rem;
+    font-family: var(--font-clue);
+    font-size: 0.75rem;
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
 
 <div id="config-banner" class="config-banner">
-  Firebase not configured. Open this file and add your Firebase config to the FIREBASE_CONFIG object.
+  Cannot reach the polling service. Check your connection and reload.
+</div>
+
+<div id="resume-bar" class="resume-bar">
+  <span id="resume-text">Reconnecting to your session&hellip;</span>
+  <button onclick="discardActiveSession()">Start fresh instead</button>
 </div>
 
 <!-- ═══════════ LANDING ═══════════ -->
@@ -974,6 +1022,10 @@
   <div class="templates-section" id="templates-section">
     <div class="templates-header">
       <h3>Saved Polls</h3>
+      <div class="drive-status">
+        <span id="drive-chip" class="drive-chip">Saved on this device only</span>
+        <button class="btn btn-secondary btn-small" id="drive-connect-btn" onclick="connectDrive()">Connect Drive</button>
+      </div>
     </div>
     <div id="templates-list"></div>
   </div>
@@ -1087,7 +1139,8 @@
 
     <div id="p-ended" style="display:none;">
       <div class="question-text">Session ended</div>
-      <p style="color:var(--quetzal-bright);font-family:var(--font-clue);font-size:0.9rem;margin-bottom:2rem;">All responses have been saved.</p>
+      <p style="color:var(--quetzal-bright);font-family:var(--font-clue);font-size:0.9rem;margin-bottom:0.5rem;">All responses have been saved.</p>
+      <p id="p-archive-note" style="color:rgba(245,245,220,0.5);font-family:var(--font-clue);font-size:0.8rem;margin-bottom:2rem;"></p>
       <div style="display:flex;gap:1rem;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="showResults()">View Results</button>
         <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
@@ -1142,9 +1195,12 @@
 
 <!-- ═══════════ FIREBASE SDK ═══════════ -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <!-- QR Code generator (lightweight, no dependencies) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- Google Identity Services (Drive sign-in). Optional: app runs without it. -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
 // ╔══════════════════════════════════════════════════╗
@@ -1160,32 +1216,71 @@ const FIREBASE_CONFIG = {
   appId: "1:182821462877:web:c45ff1c8ed2eb3ed5abeb4"
 };
 
+// ╔══════════════════════════════════════════════════╗
+// ║  GOOGLE DRIVE CONFIG                              ║
+// ╠══════════════════════════════════════════════════╣
+// ║  Leave GOOGLE_CLIENT_ID empty to run without      ║
+// ║  Drive. Polls then save to this browser only.     ║
+// ║  Setup steps live in README.md.                   ║
+// ╚══════════════════════════════════════════════════╝
+const GOOGLE_CLIENT_ID = "";  // e.g. "182821462877-xxxxx.apps.googleusercontent.com"
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_ROOT_NAME = "Live Poll";
+
 // ── Init ──
 let db = null;
 let firebaseReady = false;
-try {
-  if (FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+let authReady = false;        // resolves once anonymous sign-in completes
+let voterId = null;           // = firebase auth uid. Set after sign-in.
+
+// Anonymous sign-in gives every browser a stable identity the database can
+// trust, which is what lets the rules say "one vote per person, presenter
+// only" instead of trusting the client. If the Anonymous provider is not
+// enabled in the Firebase console yet, we fall back to a random local id and
+// keep running, so this file is safe to deploy before that switch is flipped.
+const authPromise = new Promise(resolve => {
+  const fallback = () => {
+    voterId = localStorage.getItem('lp_voter_id') || generateId();
+    localStorage.setItem('lp_voter_id', voterId);
+    authReady = true;
+    resolve(voterId);
+  };
+  try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
     firebaseReady = true;
-  } else {
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        voterId = user.uid;
+        authReady = true;
+        resolve(user.uid);
+      }
+    });
+    firebase.auth().signInAnonymously().catch(e => {
+      console.warn("Anonymous sign-in unavailable, using local id:", e.code || e);
+      fallback();
+    });
+    // Never hang the UI on a slow or misconfigured auth handshake.
+    setTimeout(() => { if (!authReady) fallback(); }, 6000);
+  } catch(e) {
+    console.error("Firebase init error:", e);
     document.getElementById('config-banner').classList.add('show');
+    fallback();
   }
-} catch(e) {
-  console.error("Firebase init error:", e);
-  document.getElementById('config-banner').classList.add('show');
-}
+});
 
 // ── State ──
 let currentSession = null;
 let isPresenter = false;
-let voterId = localStorage.getItem('lp_voter_id') || generateId();
-localStorage.setItem('lp_voter_id', voterId);
+let currentPollName = 'Untitled Poll';
 let questionsQueue = [];
 let listeners = [];
+let voteListener = null;      // tracked separately so it can't stack up
 let hasVotedThisQ = false;
-let lobbyQR = null;
-let headerQR = null;
+
+const MAX_QUESTIONS = 10;
+const ACTIVE_SESSION_KEY = 'lp_active_session';
+const ACTIVE_SESSION_TTL_MS = 12 * 60 * 60 * 1000;  // 12 hours
 
 // ── Utilities ──
 function generateId() {
@@ -1212,10 +1307,11 @@ function showView(id) {
       if (el) el.focus();
     }, 100);
   }
-  // Render saved templates when setup view opens
+  // Render saved polls when setup view opens
   if (id === 'setup') {
-    renderTemplates();
     hideSaveTemplatePrompt();
+    if (driveConfigured() && !driveConnected()) initTokenClient();
+    refreshLibrary();
   }
 }
 
@@ -1252,9 +1348,268 @@ function copyJoinLink() {
   });
 }
 
+// ╔══════════════════════════════════════════════════╗
+// ║  GOOGLE DRIVE                                     ║
+// ╠══════════════════════════════════════════════════╣
+// ║  Folder layout the app creates and maintains:     ║
+// ║                                                   ║
+// ║    Live Poll/                                     ║
+// ║      Polls/                                       ║
+// ║        Workshop Opener.livepoll.json              ║
+// ║      Sessions/                                    ║
+// ║        2026-07-12 Workshop Opener (K7M2)/         ║
+// ║          questions.json                           ║
+// ║          results.csv                              ║
+// ║                                                   ║
+// ║  Scope is drive.file: the app can only see files  ║
+// ║  it created itself. It cannot read the rest of    ║
+// ║  your Drive. Consequence: a poll JSON you create  ║
+// ║  by hand in Drive is invisible to the app.        ║
+// ╚══════════════════════════════════════════════════╝
+let driveToken = null;        // { value, expiresAt }
+let tokenClient = null;
+let driveFolders = {};        // { root, polls, sessions }
+
+function driveConfigured() {
+  return GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.length > 0;
+}
+function driveConnected() {
+  return !!(driveToken && driveToken.expiresAt > Date.now() + 30000);
+}
+
+function loadStoredToken() {
+  try {
+    const raw = sessionStorage.getItem('lp_drive_token');
+    if (!raw) return;
+    const t = JSON.parse(raw);
+    if (t.expiresAt > Date.now() + 30000) driveToken = t;
+  } catch(e) {}
+}
+
+function storeToken(t) {
+  driveToken = t;
+  try { sessionStorage.setItem('lp_drive_token', JSON.stringify(t)); } catch(e) {}
+}
+
+function initTokenClient() {
+  if (tokenClient || !driveConfigured()) return;
+  if (typeof google === 'undefined' || !google.accounts) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error || !resp.access_token) {
+        setDriveChip('Drive sign-in cancelled', false);
+        return;
+      }
+      storeToken({
+        value: resp.access_token,
+        expiresAt: Date.now() + (parseInt(resp.expires_in || 3600) * 1000)
+      });
+      setDriveChip('Connecting to Drive', false, true);
+      try {
+        await ensureDriveFolders();
+        await migrateLocalPollsToDrive();
+        await refreshLibrary();
+        setDriveChip('Saving to Google Drive', true);
+      } catch(e) {
+        console.error('Drive setup failed:', e);
+        setDriveChip('Drive error. Saved on this device.', false);
+      }
+    }
+  });
+}
+
+function connectDrive() {
+  if (!driveConfigured()) {
+    alert('Google Drive is not set up for this app yet. See README.md, section "Connecting Google Drive". Until then, polls save to this browser only.');
+    return;
+  }
+  initTokenClient();
+  if (!tokenClient) {
+    alert('Google sign-in did not load. Check your connection and reload.');
+    return;
+  }
+  tokenClient.requestAccessToken({ prompt: driveToken ? '' : 'consent' });
+}
+
+function setDriveChip(text, connected, working) {
+  const chip = document.getElementById('drive-chip');
+  const btn = document.getElementById('drive-connect-btn');
+  if (!chip) return;
+  chip.textContent = text;
+  chip.classList.toggle('connected', !!connected);
+  chip.classList.toggle('working', !!working);
+  if (btn) btn.style.display = connected ? 'none' : 'inline-block';
+}
+
+// ── Drive REST helpers ──
+async function driveFetch(url, options = {}) {
+  if (!driveConnected()) throw new Error('Drive not connected');
+  const headers = Object.assign({ Authorization: 'Bearer ' + driveToken.value }, options.headers || {});
+  const resp = await fetch(url, Object.assign({}, options, { headers }));
+  if (resp.status === 401) {
+    driveToken = null;
+    try { sessionStorage.removeItem('lp_drive_token'); } catch(e) {}
+    setDriveChip('Drive session expired. Reconnect.', false);
+    throw new Error('Drive token expired');
+  }
+  if (!resp.ok) throw new Error('Drive API ' + resp.status + ': ' + await resp.text());
+  return resp;
+}
+
+async function driveFindFolder(name, parentId) {
+  const q = [
+    "mimeType='application/vnd.google-apps.folder'",
+    "name='" + name.replace(/'/g, "\\'") + "'",
+    "trashed=false",
+    parentId ? "'" + parentId + "' in parents" : "'root' in parents"
+  ].join(' and ');
+  const url = 'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)';
+  const data = await (await driveFetch(url)).json();
+  return data.files && data.files.length ? data.files[0].id : null;
+}
+
+async function driveCreateFolder(name, parentId) {
+  const body = { name, mimeType: 'application/vnd.google-apps.folder' };
+  if (parentId) body.parents = [parentId];
+  const resp = await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return (await resp.json()).id;
+}
+
+async function driveEnsureFolder(name, parentId) {
+  const found = await driveFindFolder(name, parentId);
+  return found || await driveCreateFolder(name, parentId);
+}
+
+async function ensureDriveFolders() {
+  const root = await driveEnsureFolder(DRIVE_ROOT_NAME, null);
+  const polls = await driveEnsureFolder('Polls', root);
+  const sessions = await driveEnsureFolder('Sessions', root);
+  driveFolders = { root, polls, sessions };
+  try { localStorage.setItem('lp_drive_folders', JSON.stringify(driveFolders)); } catch(e) {}
+  return driveFolders;
+}
+
+async function driveUploadFile(name, mimeType, content, parentId, existingFileId) {
+  const boundary = 'lp' + Date.now();
+  const metadata = existingFileId ? { name } : { name, parents: [parentId] };
+  const body =
+    '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) + '\r\n' +
+    '--' + boundary + '\r\nContent-Type: ' + mimeType + '\r\n\r\n' +
+    content + '\r\n' +
+    '--' + boundary + '--';
+  const url = existingFileId
+    ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingFileId + '?uploadType=multipart&fields=id'
+    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
+  const resp = await driveFetch(url, {
+    method: existingFileId ? 'PATCH' : 'POST',
+    headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
+    body
+  });
+  return (await resp.json()).id;
+}
+
+async function driveListPolls() {
+  const q = "'" + driveFolders.polls + "' in parents and trashed=false and mimeType='application/json'";
+  const url = 'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) +
+              '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc';
+  const data = await (await driveFetch(url)).json();
+  const polls = [];
+  for (const f of (data.files || [])) {
+    try {
+      const content = await (await driveFetch('https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media')).json();
+      polls.push({
+        name: content.name || f.name.replace(/\.livepoll\.json$/, ''),
+        questions: content.questions || [],
+        createdAt: content.createdAt || Date.parse(f.modifiedTime),
+        driveFileId: f.id
+      });
+    } catch(e) { console.warn('Skipped unreadable poll file', f.name, e); }
+  }
+  return polls;
+}
+
+async function driveTrashFile(fileId) {
+  await driveFetch('https://www.googleapis.com/drive/v3/files/' + fileId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true })
+  });
+}
+
+// One-time lift of anything already saved in this browser.
+async function migrateLocalPollsToDrive() {
+  const local = getLocalPolls();
+  if (!local.length) return;
+  const remote = await driveListPolls();
+  const names = remote.map(p => p.name.toLowerCase());
+  for (const p of local) {
+    if (names.includes(p.name.toLowerCase())) continue;
+    await driveUploadFile(
+      p.name + '.livepoll.json',
+      'application/json',
+      JSON.stringify({ name: p.name, questions: p.questions, createdAt: p.createdAt || Date.now() }, null, 2),
+      driveFolders.polls
+    );
+  }
+}
+
+// ── Archive a finished session to Drive ──
+async function archiveSessionToDrive(session, pollName) {
+  if (!driveConnected()) return null;
+  if (!driveFolders.sessions) await ensureDriveFolders();
+  const date = new Date().toISOString().slice(0, 10);
+  const safeName = (pollName || 'Untitled Poll').replace(/[\\/:*?"<>|]/g, '-');
+  const folderName = date + ' ' + safeName + ' (' + session.code + ')';
+  const folderId = await driveCreateFolder(folderName, driveFolders.sessions);
+  await driveUploadFile('questions.json', 'application/json',
+    JSON.stringify({ code: session.code, name: pollName, createdAt: session.createdAt, questions: session.questions }, null, 2),
+    folderId);
+  await driveUploadFile('results.csv', 'text/csv', buildCSV(session), folderId);
+  return folderId;
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  POLL LIBRARY (Drive when connected, else local)  ║
+// ╚══════════════════════════════════════════════════╝
+let pollLibrary = [];
+
+function getLocalPolls() {
+  try { return JSON.parse(localStorage.getItem('livepoll_templates') || '[]'); }
+  catch(e) { return []; }
+}
+function setLocalPolls(polls) {
+  try { localStorage.setItem('livepoll_templates', JSON.stringify(polls)); } catch(e) {}
+}
+
+async function refreshLibrary() {
+  if (driveConnected()) {
+    try {
+      if (!driveFolders.polls) await ensureDriveFolders();
+      pollLibrary = await driveListPolls();
+      setLocalPolls(pollLibrary.map(p => ({ name: p.name, questions: p.questions, createdAt: p.createdAt })));
+      setDriveChip('Saving to Google Drive', true);
+      renderTemplates();
+      return;
+    } catch(e) {
+      console.error('Drive read failed, falling back to local:', e);
+    }
+  }
+  pollLibrary = getLocalPolls();
+  renderTemplates();
+}
+
 // ── LANDING ──
-document.getElementById('join-code').addEventListener('keyup', function(e) {
+document.getElementById('join-code').addEventListener('input', function() {
   this.value = this.value.toUpperCase();
+});
+document.getElementById('join-code').addEventListener('keyup', function(e) {
   if (e.key === 'Enter') joinSession();
 });
 
@@ -1266,9 +1621,10 @@ window.addEventListener('load', () => {
   }
 });
 
-async function joinSession() {
-  if (!firebaseReady) { alert('Firebase not configured.'); return; }
-  const code = document.getElementById('join-code').value.trim().toUpperCase();
+async function joinSession(codeArg) {
+  if (!firebaseReady) { alert('Cannot reach the polling service.'); return; }
+  await authPromise;
+  const code = (codeArg || document.getElementById('join-code').value).trim().toUpperCase();
   if (code.length !== 4) {
     showJoinError('Enter a 4-character room code.');
     return;
@@ -1291,8 +1647,97 @@ async function joinSession() {
   pRef.set({ joined: Date.now() });
   pRef.onDisconnect().remove();
 
+  // Survive a refresh: the hash is the audience's way back in.
+  if (location.hash !== '#join/' + code) {
+    history.replaceState(null, '', '#join/' + code);
+  }
+  rememberActiveSession(code, 'audience');
+
   showView('audience');
   listenAsAudience(code);
+}
+
+// ── SESSION RECOVERY ──
+// The presenter's session used to live only in a JS variable. One refresh
+// and the room was stranded. Now the code is written down, and on boot we
+// walk back into whatever is still running.
+function rememberActiveSession(code, role, pollName) {
+  try {
+    localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
+      code, role, pollName: pollName || currentPollName, ts: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function forgetActiveSession() {
+  try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch(e) {}
+}
+
+function getActiveSession() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.code || Date.now() - s.ts > ACTIVE_SESSION_TTL_MS) { forgetActiveSession(); return null; }
+    return s;
+  } catch(e) { return null; }
+}
+
+function discardActiveSession() {
+  forgetActiveSession();
+  document.getElementById('resume-bar').classList.remove('show');
+  cleanupListeners();
+  currentSession = null;
+  history.replaceState(null, '', location.pathname);
+  showView('landing');
+}
+
+async function resumeActiveSession() {
+  const active = getActiveSession();
+  if (!active || !firebaseReady) return false;
+
+  const bar = document.getElementById('resume-bar');
+  document.getElementById('resume-text').textContent = 'Reconnecting to session ' + active.code + '…';
+  bar.classList.add('show');
+
+  await authPromise;
+  const snap = await db.ref('sessions/' + active.code).once('value');
+  if (!snap.exists() || snap.val().status === 'ended') {
+    forgetActiveSession();
+    bar.classList.remove('show');
+    return false;
+  }
+
+  const data = snap.val();
+  currentSession = { code: active.code, ...data };
+  currentPollName = active.pollName || 'Untitled Poll';
+  bar.classList.remove('show');
+
+  if (active.role === 'presenter') {
+    // Only the account that created the session can drive it.
+    if (data.owner && data.owner !== voterId) { forgetActiveSession(); return false; }
+    isPresenter = true;
+    if (data.status === 'lobby') {
+      showLobby(active.code);
+    } else {
+      showView('presenter');
+      document.getElementById('p-room-code').textContent = active.code;
+      generateQRCode(document.getElementById('header-qr'), getJoinURL(active.code), 52);
+      listenForParticipants(active.code);
+      listenAsPresenter(active.code);
+      showPresenterQuestion();
+    }
+    return true;
+  }
+
+  // Audience
+  isPresenter = false;
+  const pRef = db.ref('sessions/' + active.code + '/participants/' + voterId);
+  pRef.set({ joined: Date.now() });
+  pRef.onDisconnect().remove();
+  showView('audience');
+  listenAsAudience(active.code);
+  return true;
 }
 
 function showJoinError(msg) {
@@ -1329,6 +1774,10 @@ function addQuestion() {
   const type = document.getElementById('q-type').value;
   const text = document.getElementById('q-text').value.trim();
   if (!text) { alert('Enter a question.'); return; }
+  if (questionsQueue.length >= MAX_QUESTIONS) {
+    alert('Ten questions is the cap. Trim one first.');
+    return;
+  }
 
   const q = { type, text };
 
@@ -1372,32 +1821,22 @@ function renderQueue() {
     <div class="queued-question">
       <div class="qq-info">
         <div class="qq-type">${q.type === 'multiple_choice' ? 'Multiple Choice' : 'Rating Scale'}</div>
-        <div class="qq-text">${q.text}</div>
+        <div class="qq-text">${escapeHTML(q.text)}</div>
       </div>
       <button class="btn btn-secondary btn-small" onclick="removeQuestion(${i})">&times;</button>
     </div>
   `).join('');
 }
 
-// ── POLL TEMPLATES (localStorage) ──
-function getTemplates() {
-  try {
-    return JSON.parse(localStorage.getItem('livepoll_templates') || '[]');
-  } catch(e) { return []; }
-}
-
-function saveTemplates(templates) {
-  localStorage.setItem('livepoll_templates', JSON.stringify(templates));
-}
-
+// ── SAVED POLLS (rendered from pollLibrary) ──
 function renderTemplates() {
   const list = document.getElementById('templates-list');
-  const templates = getTemplates();
-  if (templates.length === 0) {
+  if (!list) return;
+  if (pollLibrary.length === 0) {
     list.innerHTML = '<div class="no-templates">No saved polls yet. Build one and hit Save Poll.</div>';
     return;
   }
-  list.innerHTML = templates.map((t, i) => {
+  list.innerHTML = pollLibrary.map((t, i) => {
     const qCount = t.questions.length;
     const qLabel = qCount === 1 ? '1 question' : qCount + ' questions';
     return `
@@ -1416,31 +1855,36 @@ function renderTemplates() {
 
 function escapeHTML(str) {
   const d = document.createElement('div');
-  d.textContent = str;
+  d.textContent = (str === null || str === undefined) ? '' : String(str);
   return d.innerHTML;
 }
 
 function loadTemplate(idx) {
-  const templates = getTemplates();
-  if (!templates[idx]) return;
-  questionsQueue = JSON.parse(JSON.stringify(templates[idx].questions));
+  const t = pollLibrary[idx];
+  if (!t) return;
+  questionsQueue = JSON.parse(JSON.stringify(t.questions));
+  currentPollName = t.name;
   renderQueue();
-  // Scroll down to show the loaded questions
   document.getElementById('questions-queue').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function deleteTemplate(idx) {
-  const templates = getTemplates();
-  if (!templates[idx]) return;
-  if (!confirm('Delete "' + templates[idx].name + '"?')) return;
-  templates.splice(idx, 1);
-  saveTemplates(templates);
+async function deleteTemplate(idx) {
+  const t = pollLibrary[idx];
+  if (!t) return;
+  if (!confirm('Delete "' + t.name + '"?')) return;
+
+  if (driveConnected() && t.driveFileId) {
+    try { await driveTrashFile(t.driveFileId); }
+    catch(e) { alert('Could not delete from Drive. Nothing was changed.'); return; }
+  }
+  pollLibrary.splice(idx, 1);
+  setLocalPolls(pollLibrary.map(p => ({ name: p.name, questions: p.questions, createdAt: p.createdAt })));
   renderTemplates();
 }
 
 function showSaveTemplatePrompt() {
   document.getElementById('save-template-prompt').style.display = 'block';
-  document.getElementById('template-name-input').value = '';
+  document.getElementById('template-name-input').value = currentPollName === 'Untitled Poll' ? '' : currentPollName;
   document.getElementById('template-name-input').focus();
 }
 
@@ -1448,62 +1892,104 @@ function hideSaveTemplatePrompt() {
   document.getElementById('save-template-prompt').style.display = 'none';
 }
 
-function saveTemplate() {
+async function saveTemplate() {
   const name = document.getElementById('template-name-input').value.trim();
   if (!name) { alert('Give this poll a name.'); return; }
   if (questionsQueue.length === 0) { alert('Add at least one question first.'); return; }
 
-  const templates = getTemplates();
-  // Check for duplicate name
-  const existing = templates.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
-  if (existing >= 0) {
-    if (!confirm('"' + name + '" already exists. Overwrite it?')) return;
-    templates[existing].questions = JSON.parse(JSON.stringify(questionsQueue));
-  } else {
-    templates.push({
-      name,
-      questions: JSON.parse(JSON.stringify(questionsQueue)),
-      createdAt: Date.now()
-    });
+  const existingIdx = pollLibrary.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
+  if (existingIdx >= 0 && !confirm('"' + name + '" already exists. Overwrite it?')) return;
+
+  const record = {
+    name,
+    questions: JSON.parse(JSON.stringify(questionsQueue)),
+    createdAt: (existingIdx >= 0 ? pollLibrary[existingIdx].createdAt : Date.now()),
+    driveFileId: (existingIdx >= 0 ? pollLibrary[existingIdx].driveFileId : undefined)
+  };
+
+  if (driveConnected()) {
+    try {
+      if (!driveFolders.polls) await ensureDriveFolders();
+      setDriveChip('Saving to Drive', false, true);
+      record.driveFileId = await driveUploadFile(
+        name + '.livepoll.json',
+        'application/json',
+        JSON.stringify({ name, questions: record.questions, createdAt: record.createdAt }, null, 2),
+        driveFolders.polls,
+        record.driveFileId
+      );
+      setDriveChip('Saving to Google Drive', true);
+    } catch(e) {
+      console.error('Drive save failed:', e);
+      alert('Could not save to Drive. Kept a copy on this device.');
+    }
   }
 
-  saveTemplates(templates);
+  if (existingIdx >= 0) pollLibrary[existingIdx] = record;
+  else pollLibrary.unshift(record);
+
+  currentPollName = name;
+  setLocalPolls(pollLibrary.map(p => ({ name: p.name, questions: p.questions, createdAt: p.createdAt })));
   renderTemplates();
   hideSaveTemplatePrompt();
 }
 
 // ── LAUNCH SESSION → LOBBY ──
 async function launchSession() {
-  if (!firebaseReady) { alert('Firebase not configured.'); return; }
+  if (!firebaseReady) { alert('Cannot reach the polling service.'); return; }
   if (questionsQueue.length === 0) return;
+  await authPromise;
 
-  const code = generateRoomCode();
-  const session = {
-    code,
-    questions: questionsQueue,
-    currentQ: 0,
-    status: 'lobby',
-    createdAt: Date.now()
-  };
+  // Claim a code nobody else holds. A blind set() could have landed on top
+  // of a live room; the transaction refuses to write over an existing node.
+  let code = null;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const candidate = generateRoomCode();
+    const result = await db.ref('sessions/' + candidate).transaction(current => {
+      if (current !== null) return;  // taken, abort
+      return {
+        code: candidate,
+        owner: voterId,
+        questions: questionsQueue,
+        currentQ: 0,
+        status: 'lobby',
+        createdAt: Date.now()
+      };
+    });
+    if (result.committed) { code = candidate; currentSession = result.snapshot.val(); break; }
+  }
+  if (!code) { alert('Could not claim a room code. Try again.'); return; }
 
-  await db.ref('sessions/' + code).set(session);
-  currentSession = session;
   isPresenter = true;
+  rememberActiveSession(code, 'presenter', currentPollName);
+  showLobby(code);
+}
 
-  // Show the lobby (QR + big room code)
+function showLobby(code) {
   showView('presenter-lobby');
 
-  // Generate QR code for the lobby
   const joinURL = getJoinURL(code);
   document.getElementById('lobby-room-code').textContent = code;
   document.getElementById('lobby-url').textContent = joinURL.replace('https://', '').replace('http://', '');
 
-  // QR code — size based on viewport
-  const qrSize = Math.min(280, Math.floor(window.innerWidth * 0.35));
-  generateQRCode(document.getElementById('lobby-qr'), joinURL, qrSize);
+  drawLobbyQR(joinURL);
+  window.addEventListener('resize', lobbyResizeHandler);
 
-  // Listen for participants joining
   listenForParticipants(code);
+}
+
+function drawLobbyQR(joinURL) {
+  const qrSize = Math.min(280, Math.max(160, Math.floor(window.innerWidth * 0.35)));
+  generateQRCode(document.getElementById('lobby-qr'), joinURL, qrSize);
+}
+
+// The QR used to be sized once at launch. Move the browser to the projector
+// or rotate the tablet and it stayed the wrong size. Now it redraws.
+let lobbyResizeTimer = null;
+function lobbyResizeHandler() {
+  if (!currentSession || !document.getElementById('presenter-lobby').classList.contains('active')) return;
+  clearTimeout(lobbyResizeTimer);
+  lobbyResizeTimer = setTimeout(() => drawLobbyQR(getJoinURL(currentSession.code)), 200);
 }
 
 function listenForParticipants(code) {
@@ -1602,7 +2088,10 @@ function showPresenterQuestion() {
     renderRatingResults(q, {});
   }
 
-  // Listen for votes
+  // Listen for votes. Detach the previous one first: this function runs on
+  // every open/close of voting, and the old code stacked a fresh callback
+  // each time.
+  if (voteListener) { voteListener.ref.off('value'); voteListener = null; }
   const vRef = db.ref('sessions/' + currentSession.code + '/votes/' + currentSession.currentQ);
   vRef.on('value', snap => {
     const votes = snap.exists() ? snap.val() : {};
@@ -1614,7 +2103,7 @@ function showPresenterQuestion() {
       renderRatingResults(q, votes);
     }
   });
-  listeners.push({ ref: vRef, event: 'value' });
+  voteListener = { ref: vRef, event: 'value' };
 
   // Button states
   const openBtn = document.getElementById('p-open-btn');
@@ -1646,7 +2135,7 @@ function renderMCResults(q, votes) {
     const pct = total > 0 ? (count / total * 100) : 0;
     const isMax = count === max && count > 0;
     return `<div class="result-bar-row">
-      <div class="result-label">${opt}</div>
+      <div class="result-label">${escapeHTML(opt)}</div>
       <div class="result-bar-track">
         <div class="result-bar-fill ${isMax ? 'highlight' : ''}" style="width:${pct}%"></div>
       </div>
@@ -1687,8 +2176,8 @@ function renderRatingResults(q, votes) {
       }).join('')}
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:0.5rem;">
-      <span style="font-family:var(--font-clue);font-size:0.75rem;color:rgba(245,245,220,0.4);">${q.lowLabel || 'Low'}</span>
-      <span style="font-family:var(--font-clue);font-size:0.75rem;color:rgba(245,245,220,0.4);">${q.highLabel || 'High'}</span>
+      <span style="font-family:var(--font-clue);font-size:0.75rem;color:rgba(245,245,220,0.4);">${escapeHTML(q.lowLabel || 'Low')}</span>
+      <span style="font-family:var(--font-clue);font-size:0.75rem;color:rgba(245,245,220,0.4);">${escapeHTML(q.highLabel || 'High')}</span>
     </div>
   `;
 }
@@ -1729,7 +2218,27 @@ async function endSession() {
   if (!confirm('End this session? Voting will close for all questions.')) return;
   await db.ref('sessions/' + currentSession.code + '/status').set('ended');
   currentSession.status = 'ended';
+  forgetActiveSession();
   showPresenterState('ended');
+
+  // Archive to Drive. Failure here must never eat the results: they are still
+  // in the database and still exportable from this screen.
+  const note = document.getElementById('p-archive-note');
+  if (!driveConnected()) {
+    if (note) note.textContent = 'Drive is not connected, so nothing was archived. Export the CSV before you close this tab.';
+    return;
+  }
+  if (note) note.textContent = 'Archiving to Drive…';
+  try {
+    const snap = await db.ref('sessions/' + currentSession.code).once('value');
+    const full = { code: currentSession.code, ...snap.val() };
+    await archiveSessionToDrive(full, currentPollName);
+    if (note) note.textContent = 'Archived to Drive: ' + DRIVE_ROOT_NAME + ' / Sessions / ' +
+      new Date().toISOString().slice(0,10) + ' ' + currentPollName + ' (' + currentSession.code + ')';
+  } catch(e) {
+    console.error('Drive archive failed:', e);
+    if (note) note.textContent = 'Drive archive failed. Export the CSV before you close this tab.';
+  }
 }
 
 // ── AUDIENCE LOGIC ──
@@ -1801,19 +2310,28 @@ function renderAudienceView(data) {
   ratingOpts.style.display = 'none';
 
   if (q.type === 'multiple_choice') {
+    // Option text is written into a data attribute and read back on click.
+    // The old build interpolated it straight into an onclick attribute, so a
+    // quote in an option broke the button and a script tag ran on the screen.
     mcOpts.style.display = 'flex';
-    mcOpts.innerHTML = q.options.map(opt => `
-      <button class="vote-option" onclick="castVote('${opt.replace(/'/g, "\\'")}')">${opt}</button>
-    `).join('');
+    mcOpts.innerHTML = '';
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'vote-option';
+      btn.textContent = opt;
+      btn.addEventListener('click', () => castVote(opt));
+      mcOpts.appendChild(btn);
+    });
   } else {
     ratingOpts.style.display = 'block';
+    selectedRating = null;
     ratingOpts.innerHTML = `
       <div class="rating-buttons">
         ${[1,2,3,4,5].map(n => `<button class="rating-btn" onclick="selectRating(${n}, this)">${n}</button>`).join('')}
       </div>
       <div class="rating-labels">
-        <span>${q.lowLabel || 'Low'}</span>
-        <span>${q.highLabel || 'High'}</span>
+        <span>${escapeHTML(q.lowLabel || 'Low')}</span>
+        <span>${escapeHTML(q.highLabel || 'High')}</span>
       </div>
       <button class="btn btn-primary" id="submit-rating-btn" onclick="castVote(selectedRating)" style="display:none;width:100%;padding:1rem;">Submit</button>
     `;
@@ -1831,14 +2349,22 @@ function selectRating(n, btn) {
 async function castVote(value) {
   if (!firebaseReady || !currentSession || hasVotedThisQ) return;
   if (value === null || value === undefined) return;
+  // Voting used to be "closed" only by hiding the buttons. A stale tab could
+  // still write. The database rules enforce this now; the client agrees.
+  if (currentSession.status !== 'voting') return;
 
   const code = currentSession.code;
   const qIdx = currentSession.currentQ;
 
-  await db.ref('sessions/' + code + '/votes/' + qIdx + '/' + voterId).set({
-    value: String(value),
-    timestamp: Date.now()
-  });
+  try {
+    await db.ref('sessions/' + code + '/votes/' + qIdx + '/' + voterId).set({
+      value: String(value),
+      timestamp: Date.now()
+    });
+  } catch(e) {
+    console.error('Vote rejected:', e);
+    return;
+  }
 
   hasVotedThisQ = true;
   document.getElementById('a-question-area').style.display = 'none';
@@ -1862,11 +2388,11 @@ function showResults() {
       voteList.forEach(v => { if (counts[v.value] !== undefined) counts[v.value]++; });
       const total = voteList.length;
       return `<div class="result-card">
-        <h3>${q.text}</h3>
+        <h3>${escapeHTML(q.text)}</h3>
         <div class="rc-type">Multiple Choice / ${total} responses</div>
         <table>
           <tr><th>Option</th><th>Votes</th><th>%</th></tr>
-          ${q.options.map(o => `<tr><td>${o}</td><td>${counts[o]}</td><td>${total ? Math.round(counts[o]/total*100) : 0}%</td></tr>`).join('')}
+          ${q.options.map(o => `<tr><td>${escapeHTML(o)}</td><td>${counts[o]}</td><td>${total ? Math.round(counts[o]/total*100) : 0}%</td></tr>`).join('')}
         </table>
       </div>`;
     } else {
@@ -1878,7 +2404,7 @@ function showResults() {
       });
       const avg = voteList.length ? (sum / voteList.length).toFixed(1) : '—';
       return `<div class="result-card">
-        <h3>${q.text}</h3>
+        <h3>${escapeHTML(q.text)}</h3>
         <div class="rc-type">Rating Scale / ${voteList.length} responses / Avg: ${avg}</div>
         <table>
           <tr><th>Rating</th><th>Count</th></tr>
@@ -1889,10 +2415,15 @@ function showResults() {
   }).join('');
 }
 
-function exportCSV() {
-  if (!currentSession) return;
-  const qs = currentSession.questions;
-  const votes = currentSession.votes || {};
+// RFC 4180: a quote inside a field is escaped by doubling it. The old export
+// wrote a raw quote and produced a broken file for any question with one.
+function csvCell(v) {
+  return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"';
+}
+
+function buildCSV(session) {
+  const qs = session.questions || [];
+  const votes = session.votes || {};
   let csv = 'Question,Type,Option/Rating,Count,Percentage\n';
 
   qs.forEach((q, i) => {
@@ -1905,7 +2436,7 @@ function exportCSV() {
       qVotes.forEach(v => { if (counts[v.value] !== undefined) counts[v.value]++; });
       q.options.forEach(o => {
         const pct = total ? Math.round(counts[o]/total*100) : 0;
-        csv += `"${q.text}",Multiple Choice,"${o}",${counts[o]},${pct}%\n`;
+        csv += [csvCell(q.text), 'Multiple Choice', csvCell(o), counts[o], pct + '%'].join(',') + '\n';
       });
     } else {
       const dist = {1:0,2:0,3:0,4:0,5:0};
@@ -1915,12 +2446,17 @@ function exportCSV() {
       });
       [1,2,3,4,5].forEach(n => {
         const pct = total ? Math.round(dist[n]/total*100) : 0;
-        csv += `"${q.text}",Rating Scale,${n},${dist[n]},${pct}%\n`;
+        csv += [csvCell(q.text), 'Rating Scale', n, dist[n], pct + '%'].join(',') + '\n';
       });
     }
   });
 
-  const blob = new Blob([csv], { type: 'text/csv' });
+  return csv;
+}
+
+function exportCSV() {
+  if (!currentSession) return;
+  const blob = new Blob([buildCSV(currentSession)], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1933,6 +2469,7 @@ function exportCSV() {
 function cleanupListeners() {
   listeners.forEach(l => l.ref.off(l.event));
   listeners = [];
+  if (voteListener) { voteListener.ref.off(voteListener.event); voteListener = null; }
 }
 
 // ── HASH ROUTING (for direct join links) ──
@@ -1941,11 +2478,37 @@ function checkHash() {
   if (hash.startsWith('#join/')) {
     const code = hash.replace('#join/', '').toUpperCase();
     document.getElementById('join-code').value = code;
-    joinSession();
+    joinSession(code);
   }
 }
 window.addEventListener('hashchange', checkHash);
-window.addEventListener('load', checkHash);
+
+// ── BOOT ──
+// Order matters. A live session we were already in beats a join link, which
+// beats the landing page.
+(async function boot() {
+  loadStoredToken();
+  try {
+    const cached = JSON.parse(localStorage.getItem('lp_drive_folders') || 'null');
+    if (cached) driveFolders = cached;
+  } catch(e) {}
+
+  if (driveConfigured() && driveConnected()) {
+    setDriveChip('Saving to Google Drive', true);
+  } else if (driveConfigured()) {
+    setDriveChip('Not connected to Drive', false);
+  } else {
+    setDriveChip('Saved on this device only', false);
+  }
+
+  if (!firebaseReady) return;
+  await authPromise;
+
+  const resumed = await resumeActiveSession();
+  if (resumed) return;
+
+  checkHash();
+})();
 </script>
 </body>
 </html>
