@@ -38,7 +38,7 @@
         "votes": {
           "$q": {
             "$uid": {
-              ".write": "auth != null && $uid == auth.uid && root.child('sessions').child($code).child('status').val() == 'voting'",
+              ".write": "auth != null && $uid == auth.uid && root.child('sessions').child($code).child('status').val() == 'voting' && $q == '' + root.child('sessions').child($code).child('currentQ').val()",
               ".validate": "newData.hasChildren(['value', 'timestamp']) && newData.child('value').isString() && newData.child('value').val().length < 200"
             }
           }
