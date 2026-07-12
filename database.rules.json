@@ -3,7 +3,7 @@
     ".read": false,
     ".write": false,
     "sessions": {
-      ".read": false,
+      ".read": "auth != null && auth.token.email == 'angiebaileycomo@gmail.com'",
       ".write": false,
       "$code": {
         ".read": "auth != null",
@@ -23,7 +23,7 @@
         },
         "status": {
           ".write": "auth != null && root.child('sessions').child($code).child('owner').val() == auth.uid",
-          ".validate": "newData.isString() && newData.val().matches(/^(lobby|waiting|voting|closed|summary|ended)$/)"
+          ".validate": "newData.isString() && newData.val().matches(/^(held|lobby|waiting|voting|closed|summary|ended)$/)"
         },
         "currentQ": {
           ".write": "auth != null && root.child('sessions').child($code).child('owner').val() == auth.uid",
@@ -42,8 +42,14 @@
               ".validate": "newData.hasChildren(['value', 'timestamp']) && newData.child('value').isString() && newData.child('value').val().length < 200"
             }
           }
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length < 120"
         }
-      }
+      },
+      ".indexOn": [
+        "owner"
+      ]
     }
   }
 }
