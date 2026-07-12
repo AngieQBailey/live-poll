@@ -998,6 +998,8 @@
     text-align: center;
   }
   .drive-warning.show { display: flex; }
+  /* The fixed bar sat on top of the page title. Push the content down. */
+  body.warn-offset .view.active { padding-top: 4.5rem; }
   .drive-warning button {
     background: #F5F5DC;
     color: #121A28;
@@ -1415,6 +1417,7 @@ function renderDriveWarning() {
   if (!bar) return;
   const show = isPresenterAccount && driveConfigured() && !driveConnected();
   bar.classList.toggle('show', show);
+  document.body.classList.toggle('warn-offset', show);
 }
 
 async function presenterSignOut() {
