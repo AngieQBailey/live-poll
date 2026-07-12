@@ -5,17 +5,41 @@
 
 ---
 
-## The night before (5 minutes)
+## Reuse a poll you have run before (30 seconds)
+
+This is the normal path. You should almost never build from scratch twice.
 
 - [ ] Open the app. Click **Create Session**.
-- [ ] Check the chip next to "Saved Polls." If it does not say **Saving to Google Drive**, click **Connect Drive** and sign in. First time on a new machine you will see an "unverified app" warning. Click **Advanced**, then **Continue**. It is your own app.
-- [ ] Load a saved poll, or build a new one. Ten questions max, 2 to 6 options each.
-- [ ] Click **Save Poll** and name it. This is the step that keeps you from rebuilding it next time.
+- [ ] **Connect Drive first.** Your saved polls live in Drive, so until the chip reads **Saving to Google Drive** the "Saved Polls" list will look empty. It is not empty. You are just not signed in yet.
+- [ ] Your polls appear as cards under **Saved Polls**. Click the card, or click **Use**.
+- [ ] The questions drop into the builder. Edit them or leave them alone.
+- [ ] **Launch Session.**
+
+Running the same poll twice is safe. Each run gets a new room code and its own dated results folder. Nothing overwrites the last time you ran it.
+
+### If you edited the questions
+
+- **Same poll, corrected:** click **Save Poll**, keep the name, confirm the overwrite. The old version is gone.
+- **A variant for a different room:** click **Save Poll** and give it a **new** name. Otherwise you quietly destroy the original.
+
+### If a poll is missing from the list
+
+Check the chip. Nine times out of ten it says "Not connected to Drive" and your library is simply not loaded yet.
+
+If it is connected and the poll is still gone, you never clicked **Save Poll** on it. A poll you launched but never saved is not reusable. The questions from that day are sitting in `Live Poll / Sessions / [date] ... / questions.json`, but the app cannot read them back in. You would rebuild it by hand. This is the one sharp edge left in the tool.
+
+---
+
+## Build a new poll (5 minutes, the night before)
+
+- [ ] Open the app, click **Create Session**, connect Drive.
+- [ ] Build the questions. Ten max, 2 to 6 options each.
+- [ ] Click **Save Poll** and name it. **Do this before you launch.** It is the step that means you never build this poll again.
 - [ ] Do not launch yet. Launching creates a live room.
 
 ## Ten minutes before you present
 
-- [ ] Open the app on the presenting machine. Reconnect Drive if the chip is not green. The Drive sign-in expires roughly every hour, so do this on the machine you will actually present from, not the one you built the poll on.
+- [ ] Open the app on the presenting machine. **Connect Drive here too.** The sign-in is per browser and expires in about an hour, so authorizing it on your laptop last night does nothing for the room machine, and without it you cannot see your saved polls.
 - [ ] Create Session, click the saved poll, **Launch Session**.
 - [ ] The lobby appears: big QR, 4-character room code, live count of who has joined.
 - [ ] Put that screen on the projector. Say the code out loud as well as showing it. QR codes fail in bad light and back rows.
