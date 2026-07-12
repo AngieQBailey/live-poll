@@ -958,6 +958,24 @@
     .templates-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
   }
 
+  /* ── Whole-poll summary (both screens) ── */
+  #a-summary { width: 100%; max-width: 520px; margin: 0 auto; text-align: center; }
+  #a-summary .audience-results { margin-top: 0.75rem; }
+  .summary-block {
+    border-left: 2px solid rgba(0,168,150,0.35);
+    padding-left: 1rem;
+    margin-bottom: 2.25rem;
+    text-align: left;
+  }
+  .summary-q {
+    font-family: var(--font-evidence);
+    font-size: 1.05rem;
+    color: var(--ecru-wool);
+    line-height: 1.35;
+  }
+  #p-summary-body { max-width: 720px; }
+  #p-summary-body .summary-q { font-size: 1.15rem; }
+
   /* ── The room, as seen from a phone ── */
   .audience-results {
     width: 100%;
@@ -1280,7 +1298,18 @@
       <div class="presenter-controls">
         <button class="btn btn-secondary" id="p-open-btn" onclick="toggleVoting()">Open Voting</button>
         <button class="btn btn-primary" id="p-next-btn" onclick="nextQuestion()" style="display:none;">Next Question</button>
+        <button class="btn btn-primary" id="p-summary-btn" onclick="showFinalResults()" style="display:none;">Show Final Results</button>
         <button class="btn btn-danger btn-small" id="p-end-btn" onclick="endSession()">End Session</button>
+      </div>
+    </div>
+
+    <div id="p-summary" style="display:none;">
+      <div class="question-text">Final results are on every screen</div>
+      <p style="color:var(--quetzal-bright);font-family:var(--font-clue);font-size:0.9rem;margin-bottom:2rem;">The room is looking at the whole poll. Voting is closed. End the session when you are ready, and the results file to Drive.</p>
+      <div id="p-summary-body" style="margin-bottom:2rem;"></div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+        <button class="btn btn-danger" onclick="endSession()">End Session</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
       </div>
     </div>
 
@@ -1324,6 +1353,12 @@
 
   <div id="a-closed" class="audience-waiting" style="display:none;">
     <p>Voting is closed for this question. You did not answer this one.</p>
+  </div>
+
+  <div id="a-summary" style="display:none;">
+    <div class="audience-question" style="font-size:1.6rem;margin-bottom:0.5rem;">How the room answered</div>
+    <p style="font-family:var(--font-clue);font-size:0.8rem;color:rgba(245,245,220,0.45);margin-bottom:2rem;">Every question. Your own answers are marked.</p>
+    <div id="a-summary-body"></div>
   </div>
 
   <div id="a-ended" class="audience-waiting" style="display:none;">
@@ -2473,10 +2508,14 @@ function showPresenterState(state) {
   const waiting = document.getElementById('p-waiting');
   const qArea = document.getElementById('p-question-area');
   const ended = document.getElementById('p-ended');
+  const summary = document.getElementById('p-summary');
 
   waiting.style.display = 'none';
   qArea.style.display = 'none';
   ended.style.display = 'none';
+  if (summary) summary.style.display = 'none';
+
+  if (state === 'summary') { if (summary) summary.style.display = 'block'; return; }
 
   if (state === 'waiting') {
     waiting.style.display = 'block';
@@ -2548,7 +2587,44 @@ function showPresenterQuestion() {
     openBtn.className = 'btn btn-secondary';
   }
 
-  nextBtn.style.display = (currentSession.currentQ < total - 1) ? 'inline-block' : 'none';
+  const isLast = currentSession.currentQ >= total - 1;
+  nextBtn.style.display = isLast ? 'none' : 'inline-block';
+  const sumBtn = document.getElementById('p-summary-btn');
+  if (sumBtn) sumBtn.style.display = isLast ? 'inline-block' : 'none';
+}
+
+// The poll is over but the session is not. Everyone gets the whole picture,
+// and it stays on their screen until the presenter ends the session.
+async function showFinalResults() {
+  const code = currentSession.code;
+  await db.ref('sessions/' + code + '/status').set('summary');
+  currentSession.status = 'summary';
+
+  const snap = await db.ref('sessions/' + code).once('value');
+  currentSession = { code, ...snap.val() };
+  renderFullSummary(document.getElementById('p-summary-body'), currentSession, null);
+  showPresenterState('summary');
+}
+
+// Every question, one after another. Used on both screens; the audience passes
+// its own uid so its answers get called out, the presenter passes null.
+function renderFullSummary(container, session, myUid) {
+  if (!container) return;
+  const qs = session.questions || [];
+  const votes = session.votes || {};
+  container.innerHTML = qs.map((q, i) => {
+    const v = votes[i] || {};
+    const mine = myUid && v[myUid] ? v[myUid].value : null;
+    return `<div class="summary-block">
+      <div class="summary-q">${escapeHTML(q.text)}</div>
+      <div class="summary-bars" id="sum-${i}"></div>
+    </div>`;
+  }).join('');
+  qs.forEach((q, i) => {
+    const v = votes[i] || {};
+    const mine = myUid && v[myUid] ? v[myUid].value : null;
+    renderAudienceResults(document.getElementById('sum-' + i), q, v, mine);
+  });
 }
 
 function renderMCResults(q, votes) {
@@ -2699,6 +2775,8 @@ function renderAudienceView(data) {
   voted.style.display = 'none';
   closed.style.display = 'none';
   ended.style.display = 'none';
+  const summaryPanel = document.getElementById('a-summary');
+  if (summaryPanel) summaryPanel.style.display = 'none';
 
   if (data.status === 'ended') {
     badge.style.display = 'none';
@@ -2707,6 +2785,17 @@ function renderAudienceView(data) {
   }
 
   badge.style.display = 'inline-flex';
+
+  // Polling is over, the session is not. Everyone sees the whole poll, whether
+  // they answered every question or none of them.
+  if (data.status === 'summary') {
+    const sum = document.getElementById('a-summary');
+    if (sum) {
+      sum.style.display = 'block';
+      renderFullSummary(document.getElementById('a-summary-body'), { ...data, code: currentSession.code }, voterId);
+    }
+    return;
+  }
 
   if (data.status === 'waiting' || data.status === 'lobby') {
     waiting.style.display = 'block';
@@ -2896,7 +2985,7 @@ function showVoteError(msg) {
 
 // Single place that owns which audience panel is on screen.
 function showAudienceState(id) {
-  ['a-waiting', 'a-question-area', 'a-voted', 'a-closed', 'a-ended'].forEach(x => {
+  ['a-waiting', 'a-question-area', 'a-voted', 'a-closed', 'a-ended', 'a-summary'].forEach(x => {
     const el = document.getElementById(x);
     if (el) el.style.display = (x === id) ? 'block' : 'none';
   });
