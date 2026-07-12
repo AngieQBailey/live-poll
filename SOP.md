@@ -47,14 +47,17 @@ Save Poll still matters for one thing: giving it a name you will recognise in si
 
 - [ ] Open **/#present** on the machine you will actually present from and **sign in there.** The sign-in is per browser and expires in about an hour. Signing in on your laptop last night does nothing for the room machine, and until you do it here you cannot see your saved polls.
 - [ ] Click the saved poll, **Launch Session**.
-- [ ] The lobby appears: big QR, 4-character room code, live count of who has joined.
+- [ ] The QR screen appears: big QR, 4-character room code, live count of who has joined, and a line telling you how many have already answered.
 - [ ] Put that screen on the projector. Say the code out loud as well as showing it. QR codes fail in bad light and back rows.
+
+**Question 1 is live the moment you launch.** Anyone who scans can read it and answer while you are still talking. You do not have to press anything to let them in.
 
 ## Running it
 
-- [ ] Watch the join count climb. Do not rush this.
-- [ ] **Start Polling** when the room is in.
-- [ ] Per question: **Open Voting** → let the bars fill → **Close Voting** → talk about it → **Next Question**.
+- [ ] Let them arrive and answer. The QR screen tells you how many have.
+- [ ] **Show Results** when you are ready to talk about it. This moves your screen only. It does not gate the room.
+- [ ] Per question: watch the bars fill → **Close Voting** when you want to lock it → talk about it → **Next Question**.
+- [ ] **Next Question opens voting for that question automatically.** There is no Open Voting step to forget.
 - [ ] **End Session** when you are done. This is the step that writes the results to Drive.
 
 ## After
@@ -77,7 +80,7 @@ Your Drive sign-in expired. Sign out and back in. Nothing is lost.
 Codes are 4 characters, no O, I, zero or one. Read it out slowly. They can also type the code on the landing page instead of scanning.
 
 **Nobody's votes are registering.**
-Voting has to be open. Check the button says **Close Voting**, not Open Voting.
+Voting opens by itself on every question, so this should not happen. If it does, check the button says **Close Voting** (voting is open) rather than **Open Voting** (you closed it, probably by accident).
 
 **The room is bigger than 100 people.**
 Stop. The free Firebase tier caps at 100 simultaneous connections and will silently turn people away past that. Upgrade the plan before the event, or do not use the poll.
@@ -93,4 +96,5 @@ They cannot. Only your Google account can create a session, enforced by the data
 - The CSV holds totals, not individual responses.
 - A saved poll is reusable forever. A session is a dated record of one room on one day. Do not expect to edit a session after it ends.
 - Questions cannot be edited after you hit Launch. Proofread before, not during.
+- Launching opens the room. If you launch an hour early, people can answer question 1 an hour early. Launch when you are ready for them.
 - Signing in is what unlocks the builder AND Drive. If something feels broken, check that first.
