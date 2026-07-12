@@ -40,6 +40,7 @@ Save Poll still matters for one thing: giving it a name you will recognise in si
 
 - [ ] Open **/#present**, sign in.
 - [ ] Build the questions. Ten max, 2 to 6 options each.
+- [ ] Give each one a **short label** (optional but do it). It is what the room sees on the final results screen. "Your archetype this week" beats re-reading the whole question on a phone. Leave it blank and the full question is used.
 - [ ] Click **Save Poll** and name it. Launching would file it for you anyway, but then it lands under a date-stamped name you will not recognise later. Name it now.
 - [ ] Do not launch yet. Launching creates a live room.
 
@@ -67,8 +68,17 @@ They only ever see results **after they answer**. Someone who sits a question ou
 
 1. Tap an answer → the checkmark screen becomes the **live tally for that question**, moving as more people answer, with their own answer marked.
 2. That stays up until you press **Next Question**, which replaces it with the new ballot.
-3. When you press **Show Final Results**, every phone switches to **the whole poll**: every question, every result, their own answers marked. Voting is locked, so nothing moves while they read.
+3. When you press **Show Final Results**, every phone switches to **the whole poll**, as one card per question:
+
+   > **THE HANDBOOK**
+   > **60%** What handbook?
+   > ▬▬▬▬▬▬▬▬
+   > You went with the room
+
+   The short label, the winning answer, one bar carrying the whole spread, and where they landed. If they voted against the room it reads "You said: Owl · 20% agreed". If they sat it out, "You did not answer this one". A dead heat reads "Split: X / Y". **See all answers** opens the full breakdown for anyone who wants it.
 4. That summary holds until you **End Session**, which replaces it with a thank-you.
+
+Your own screen keeps every bar for every question. That is your data, on a laptop. The room gets the verdict.
 
 Two consequences worth planning around:
 
