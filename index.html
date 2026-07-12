@@ -959,6 +959,53 @@
   }
 
 
+
+  /* ── Your rooms (scheduled and live) ── */
+  .rooms-section { margin-bottom: 2.5rem; }
+  .room-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--card-bg);
+    border-left: 3px solid rgba(245,245,220,0.25);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .room-card.is-live { border-left-color: var(--quetzal-bright); }
+  .room-card.is-held { border-left-color: var(--ecru-wool); }
+  .room-main { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+  .room-code {
+    font-family: var(--font-clue);
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--ecru-wool);
+    line-height: 1;
+  }
+  .room-name {
+    font-family: var(--font-evidence);
+    font-size: 1rem;
+    color: var(--ecru-wool);
+    line-height: 1.2;
+  }
+  .room-sub {
+    font-family: var(--font-clue);
+    font-size: 0.7rem;
+    color: rgba(245,245,220,0.45);
+    margin-top: 0.2rem;
+  }
+  .room-state { text-transform: uppercase; letter-spacing: 0.1em; }
+  .room-state.is-live { color: var(--quetzal-bright); }
+  .room-state.is-held { color: rgba(245,245,220,0.6); }
+  .room-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  @media (max-width: 600px) {
+    .room-card { flex-direction: column; align-items: flex-start; }
+    .room-actions { width: 100%; }
+    .room-actions .btn { flex: 1; }
+  }
+
   /* ── Verdict cards: the room's takeaway, on a phone ── */
   .vc {
     border-left: 2px solid rgba(0,168,150,0.35);
@@ -1250,6 +1297,14 @@
   <h1>Build Your Polls</h1>
   <p class="setup-subtitle">Add 1-10 questions. You'll control the flow during your presentation.</p>
 
+  <div class="rooms-section" id="rooms-section" style="display:none;">
+    <div class="templates-header">
+      <h3>Your rooms</h3>
+      <button class="btn btn-secondary btn-small" onclick="refreshRooms()">Refresh</button>
+    </div>
+    <div id="rooms-list"></div>
+  </div>
+
   <div class="templates-section" id="templates-section">
     <div class="templates-header">
       <h3>Saved Polls</h3>
@@ -1308,7 +1363,8 @@
   <div class="questions-queue" id="questions-queue"></div>
 
   <div style="margin-top:2rem; display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
-    <button class="btn btn-primary" id="launch-btn" onclick="launchSession()" style="display:none;">Launch Session</button>
+    <button class="btn btn-primary" id="launch-btn" onclick="launchSession(false)" style="display:none;">Launch Now</button>
+    <button class="btn btn-secondary" id="hold-btn" onclick="launchSession(true)" style="display:none;">Schedule &amp; Hold</button>
     <button class="btn btn-secondary" id="save-template-btn" onclick="showSaveTemplatePrompt()" style="display:none;">Save Poll</button>
     <button class="btn btn-secondary" onclick="showView('landing')">Cancel</button>
   </div>
@@ -1332,7 +1388,8 @@
   <div class="lobby-participants" id="lobby-count">0</div>
   <div class="lobby-participants-label">participants joined</div>
   <div class="lobby-participants-label" id="lobby-answered" style="margin-top:0.75rem;color:var(--quetzal-bright);">Question 1 is already open. They can answer as they arrive.</div>
-  <button class="lobby-start-btn" onclick="startFirstQuestion()">Show Results</button>
+  <button class="lobby-start-btn" id="lobby-golive-btn" onclick="goLive()" style="display:none;">Go Live</button>
+  <button class="lobby-start-btn" id="lobby-start-btn" onclick="startFirstQuestion()">Show Results</button>
 </div>
 
 <!-- ═══════════ PRESENTER (DURING QUESTIONS) ═══════════ -->
@@ -1722,6 +1779,7 @@ function showView(id) {
     hideSaveTemplatePrompt();
     if (driveConfigured() && !driveConnected()) initTokenClient();
     refreshLibrary();
+    refreshRooms();
   }
 }
 
@@ -2228,10 +2286,14 @@ function renderQueue() {
   if (questionsQueue.length === 0) {
     container.innerHTML = '';
     launchBtn.style.display = 'none';
+    const hb = document.getElementById('hold-btn');
+    if (hb) hb.style.display = 'none';
     if (saveBtn) saveBtn.style.display = 'none';
     return;
   }
   launchBtn.style.display = 'inline-block';
+  const holdBtn = document.getElementById('hold-btn');
+  if (holdBtn) holdBtn.style.display = 'inline-block';
   if (saveBtn) saveBtn.style.display = 'inline-block';
   container.innerHTML = questionsQueue.map((q, i) => `
     <div class="queued-question">
@@ -2243,6 +2305,113 @@ function renderQueue() {
       <button class="btn btn-secondary btn-small" onclick="removeQuestion(${i})">&times;</button>
     </div>
   `).join('');
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  YOUR ROOMS                                       ║
+// ╠══════════════════════════════════════════════════╣
+// ║  A room scheduled on a laptop last Tuesday has to ║
+// ║  be findable from a phone on Friday. The database ║
+// ║  is the only thing both devices share, so the     ║
+// ║  rules let the presenter (and only her) list the  ║
+// ║  rooms she owns.                                  ║
+// ╚══════════════════════════════════════════════════╝
+let myRooms = [];
+
+async function refreshRooms() {
+  if (!firebaseReady || !isPresenterAccount || !voterId) return;
+  try {
+    const snap = await db.ref('sessions').orderByChild('owner').equalTo(voterId).once('value');
+    const all = snap.val() || {};
+    myRooms = Object.keys(all)
+      .map(code => ({ code, ...all[code] }))
+      .filter(s => s.status !== 'ended')
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  } catch (e) {
+    console.warn('Could not list rooms:', e);
+    myRooms = [];
+  }
+  renderRooms();
+}
+
+function renderRooms() {
+  const section = document.getElementById('rooms-section');
+  const list = document.getElementById('rooms-list');
+  if (!section || !list) return;
+
+  if (!myRooms.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  list.innerHTML = myRooms.map(s => {
+    const held = s.status === 'held';
+    const qCount = (s.questions || []).length;
+    const answered = s.votes ? Object.keys(s.votes[0] || {}).length : 0;
+    const when = s.createdAt ? new Date(s.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    const state = held
+      ? '<span class="room-state is-held">On hold</span>'
+      : '<span class="room-state is-live">Live</span>';
+    return `<div class="room-card ${held ? 'is-held' : 'is-live'}">
+      <div class="room-main">
+        <div class="room-code">${escapeHTML(s.code)}</div>
+        <div class="room-meta">
+          <div class="room-name">${escapeHTML(s.name || 'Untitled poll')}</div>
+          <div class="room-sub">${state} &middot; ${qCount} question${qCount === 1 ? '' : 's'} &middot; created ${when}${answered ? ' &middot; ' + answered + ' answered' : ''}</div>
+        </div>
+      </div>
+      <div class="room-actions">
+        ${held ? `<button class="btn btn-primary btn-small" onclick="goLiveFromList('${s.code}')">Go Live</button>` : ''}
+        <button class="btn btn-secondary btn-small" onclick="openRoom('${s.code}')">Open</button>
+        <button class="btn btn-secondary btn-small delete-template" onclick="endRoomFromList('${s.code}')">End</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// One tap, from a phone, mid-conversation. This is the whole point.
+async function goLiveFromList(code) {
+  await db.ref('sessions/' + code + '/status').set('voting');
+  await openRoom(code);
+}
+
+async function openRoom(code) {
+  const snap = await db.ref('sessions/' + code).once('value');
+  if (!snap.exists()) { alert('That room is gone.'); return refreshRooms(); }
+  currentSession = { code, ...snap.val() };
+  currentPollName = currentSession.name || 'Untitled Poll';
+  isPresenter = true;
+  cleanupListeners();
+
+  if (currentSession.status === 'summary') {
+    renderFullSummary(document.getElementById('p-summary-body'), currentSession, null, false);
+    showView('presenter');
+    document.getElementById('p-room-code').textContent = code;
+    generateQRCode(document.getElementById('header-qr'), getJoinURL(code), 52);
+    listenAsPresenter(code);
+    showPresenterState('summary');
+    rememberActiveSession(code, 'presenter', currentPollName, 'live');
+    return;
+  }
+
+  // Held or freshly live: the QR screen. Anything further along: the questions.
+  const atStart = currentSession.status === 'held' ||
+                  (currentSession.currentQ === 0 && !(currentSession.votes && currentSession.votes[0]));
+  rememberActiveSession(code, 'presenter', currentPollName, atStart ? 'lobby' : 'live');
+  if (atStart) {
+    showLobby(code);
+  } else {
+    showView('presenter');
+    document.getElementById('p-room-code').textContent = code;
+    generateQRCode(document.getElementById('header-qr'), getJoinURL(code), 52);
+    listenForParticipants(code);
+    listenAsPresenter(code);
+    showPresenterQuestion();
+  }
+}
+
+async function endRoomFromList(code) {
+  if (!confirm('End room ' + code + '? Nobody will be able to answer it again.')) return;
+  await db.ref('sessions/' + code + '/status').set('ended');
+  await refreshRooms();
 }
 
 // ── SAVED POLLS (rendered from pollLibrary) ──
@@ -2455,7 +2624,7 @@ async function autoFilePoll() {
 }
 
 // ── LAUNCH SESSION → LOBBY ──
-async function launchSession() {
+async function launchSession(hold) {
   if (!firebaseReady) { alert('Cannot reach the polling service.'); return; }
   if (questionsQueue.length === 0) return;
   await authPromise;
@@ -2470,9 +2639,12 @@ async function launchSession() {
       return {
         code: candidate,
         owner: voterId,
+        name: currentPollName,
         questions: questionsQueue,
         currentQ: 0,
-        status: 'voting',
+        // "held" mints the code and the QR without opening the doors. The room
+        // can be printed on a slide days early and stays shut until Go Live.
+        status: hold ? 'held' : 'voting',
         createdAt: Date.now()
       };
     });
@@ -2496,6 +2668,7 @@ async function launchSession() {
 
 function showLobby(code) {
   showView('presenter-lobby');
+  renderLobbyState();
 
   const joinURL = getJoinURL(code);
   document.getElementById('lobby-room-code').textContent = code;
@@ -2514,6 +2687,7 @@ function showLobby(code) {
     const n = snap.exists() ? Object.keys(snap.val()).length : 0;
     const el = document.getElementById('lobby-answered');
     if (!el) return;
+    if (currentSession && currentSession.status === 'held') return;   // hold message wins
     el.textContent = n === 0
       ? 'Question 1 is already open. They can answer as they arrive.'
       : n + (n === 1 ? ' person has' : ' people have') + ' already answered question 1.';
@@ -2967,6 +3141,13 @@ function renderAudienceView(data) {
     return;
   }
 
+  if (data.status === 'held') {
+    waiting.style.display = 'block';
+    waiting.querySelector('p').innerHTML = 'You&rsquo;re in. Nothing to do yet<span class="waiting-dots"></span>';
+    hasVotedThisQ = false;
+    return;
+  }
+
   if (data.status === 'waiting' || data.status === 'lobby') {
     waiting.style.display = 'block';
     waiting.querySelector('p').innerHTML = 'Waiting for the presenter<span class="waiting-dots"></span>';
@@ -3042,6 +3223,33 @@ function renderAudienceView(data) {
       <button class="btn btn-primary" id="submit-rating-btn" onclick="castVote(selectedRating)" style="display:none;width:100%;padding:1rem;">Submit</button>
     `;
   }
+}
+
+// A held room shows the QR and nothing else. A live room shows the answers
+// arriving. Same screen, two jobs.
+function renderLobbyState() {
+  const held = currentSession && currentSession.status === 'held';
+  const go = document.getElementById('lobby-golive-btn');
+  const start = document.getElementById('lobby-start-btn');
+  const note = document.getElementById('lobby-answered');
+  if (go) go.style.display = held ? 'block' : 'none';
+  if (start) start.style.display = held ? 'none' : 'block';
+  if (note && held) {
+    note.textContent = 'On hold. Nobody can answer until you go live.';
+    note.style.color = 'rgba(245,245,220,0.45)';
+  } else if (note) {
+    note.style.color = 'var(--quetzal-bright)';
+  }
+}
+
+// Open the doors. This is the button you press from your phone while you are
+// still shaking hands.
+async function goLive() {
+  if (!currentSession) return;
+  await db.ref('sessions/' + currentSession.code + '/status').set('voting');
+  currentSession.status = 'voting';
+  rememberActiveSession(currentSession.code, 'presenter', currentSession.name || currentPollName, 'lobby');
+  renderLobbyState();
 }
 
 // The audience's own view of the tally. Deliberately not the presenter's chart:
