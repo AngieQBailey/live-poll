@@ -19,7 +19,7 @@
           ".validate": "newData.isNumber()"
         },
         "questions": {
-          ".write": "auth != null && !data.exists() && auth.token.email == 'angiebaileycomo@gmail.com'"
+          ".write": "auth != null && auth.token.email == 'angiebaileycomo@gmail.com' && (!data.exists() || (root.child('sessions').child($code).child('owner').val() == auth.uid && root.child('sessions').child($code).child('status').val() == 'held'))"
         },
         "status": {
           ".write": "auth != null && root.child('sessions').child($code).child('owner').val() == auth.uid",
