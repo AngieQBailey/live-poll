@@ -2412,8 +2412,35 @@ async function openRoom(code) {
   }
 }
 
+// Ending a room from the list has to archive, exactly like End Session does
+// from inside the room. It did not, at first: the room closed and the results
+// were never filed. A close that quietly skips the archive is the same class of
+// bug as a vote that quietly fails.
 async function endRoomFromList(code) {
-  if (!confirm('End room ' + code + '? Nobody will be able to answer it again.')) return;
+  const room = myRooms.find(r => r.code === code);
+  const label = room ? (room.name || 'Untitled poll') : code;
+  const answered = room && room.votes ? Object.keys(room.votes).length : 0;
+
+  if (!confirm('End "' + label + '" (' + code + ')?\n\n' +
+      (answered ? 'Results will be archived to Drive first.' : 'Nobody answered it, so there is nothing to archive.') +
+      '\nNobody will be able to answer it again.')) return;
+
+  // Archive before closing, and only if there is something to archive.
+  if (answered) {
+    if (!driveConnected()) {
+      if (!confirm('Drive is not connected, so the results CANNOT be archived.\n\nEnd it anyway? The data stays in the database but nothing will file it.')) return;
+    } else {
+      try {
+        const snap = await db.ref('sessions/' + code).once('value');
+        const full = { code, ...snap.val() };
+        await archiveSessionToDrive(full, full.name || 'Untitled Poll');
+      } catch (e) {
+        console.error('Archive failed:', e);
+        if (!confirm('The archive to Drive failed.\n\nEnd the room anyway?')) return;
+      }
+    }
+  }
+
   await db.ref('sessions/' + code + '/status').set('ended');
   await refreshRooms();
 }
