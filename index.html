@@ -2326,7 +2326,11 @@ async function refreshRooms() {
     myRooms = Object.keys(all)
       .map(code => ({ code, ...all[code] }))
       .filter(s => s.status !== 'ended')
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      .sort((a, b) => {
+        const held = (s) => s.status === 'held' ? 0 : 1;
+        if (held(a) !== held(b)) return held(a) - held(b);
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
   } catch (e) {
     console.warn('Could not list rooms:', e);
     myRooms = [];
