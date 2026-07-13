@@ -135,7 +135,7 @@ They cannot. Only your Google account can create a session, enforced by the data
 - Votes are anonymous. No names are collected, and you cannot reconstruct who said what afterward.
 - The CSV holds totals, not individual responses.
 - A saved poll is reusable forever. A session is a dated record of one room on one day. Do not expect to edit a session after it ends.
-- Questions cannot be edited after you hit Launch. Proofread before, not during.
+- Questions cannot be edited once a room is **live**. A **held** room can still be edited, so a scheduled room with a printed QR can be fixed without a new code. Ask and I will change it in place.
 - **Launch Now** opens the room immediately. If you launch an hour early, people can answer an hour early. Use **Schedule & Hold** when you want the code early and the doors shut.
 - End your rooms when you are done. They stay in Your Rooms until you do, and a stale list is a slow list to read at a networking table.
 - Signing in is what unlocks the builder AND Drive. If something feels broken, check that first.
