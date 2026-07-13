@@ -125,7 +125,7 @@ What the rules enforce:
 - **No bulk reads.** `/sessions` cannot be listed. You have to know a room code to read a room.
 - **Sign-in required.** The audience is signed in anonymously on load. There is no login screen; they never see it.
 - **Only the presenter drives.** The session records the creator's `uid` as `owner`. Only that account can change `status` or `currentQ`.
-- **Questions are frozen at launch.** They can be written once, at creation, and never edited afterward.
+- **Questions are frozen once the room is live.** A room in the `held` state can still be edited by its owner: nothing has been answered and nobody is looking, so a scheduled room can be fixed without minting a new code and reprinting the QR. The moment it goes live, the questions are immutable, even for the presenter.
 - **One vote per person per question**, keyed by auth uid, and **only while voting is open**. Closing voting is enforced by the database, not by hiding the buttons.
 - **A vote must be for the question that is live.** You cannot back-fill a question the presenter already closed and discussed, and you cannot vote ahead. Without this, a phone asleep on an old ballot could change a number the room had already been told.
 
