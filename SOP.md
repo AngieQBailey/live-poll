@@ -44,10 +44,25 @@ Save Poll still matters for one thing: giving it a name you will recognise in si
 - [ ] Click **Save Poll** and name it. Launching would file it for you anyway, but then it lands under a date-stamped name you will not recognise later. Name it now.
 - [ ] Do not launch yet. Launching creates a live room.
 
+## Schedule a room days ahead (so the QR can go on a printed slide)
+
+- [ ] Open **/#present**, sign in, load the poll.
+- [ ] Click **Schedule & Hold** instead of Launch Now.
+- [ ] The QR screen appears immediately. Screenshot it, print it, drop it in the deck. The code is real and permanent for that room.
+- [ ] The room is **shut**. Anyone who scans early gets "You're in. Nothing to do yet." Their vote is refused by the database, not just hidden.
+
+### Taking it live on the day, from your phone
+
+- [ ] Open **/#present** on your phone. **Your rooms** lists everything you have scheduled or started, held rooms first.
+- [ ] Tap **Go Live** on the room. That is the whole thing. Question 1 opens, the QR on the slide starts working, and people can answer while you are still talking to someone.
+- [ ] **Open** takes you into the room (QR screen, then results). **End** closes it for good.
+
+The list reads from the database, not the browser, so a room you scheduled on your laptop last Tuesday is on your phone on Friday.
+
 ## Ten minutes before you present
 
 - [ ] Open **/#present** on the machine you will actually present from and **sign in there.** The sign-in is per browser and expires in about an hour. Signing in on your laptop last night does nothing for the room machine, and until you do it here you cannot see your saved polls.
-- [ ] Click the saved poll, **Launch Session**.
+- [ ] Click the saved poll, then **Launch Now** (open immediately) or **Schedule & Hold** (mint the code, keep the doors shut).
 - [ ] The QR screen appears: big QR, 4-character room code, live count of who has joined, and a line telling you how many have already answered.
 - [ ] Put that screen on the projector. Say the code out loud as well as showing it. QR codes fail in bad light and back rows.
 
@@ -121,7 +136,8 @@ They cannot. Only your Google account can create a session, enforced by the data
 - The CSV holds totals, not individual responses.
 - A saved poll is reusable forever. A session is a dated record of one room on one day. Do not expect to edit a session after it ends.
 - Questions cannot be edited after you hit Launch. Proofread before, not during.
-- Launching opens the room. If you launch an hour early, people can answer question 1 an hour early. Launch when you are ready for them.
+- **Launch Now** opens the room immediately. If you launch an hour early, people can answer an hour early. Use **Schedule & Hold** when you want the code early and the doors shut.
+- End your rooms when you are done. They stay in Your Rooms until you do, and a stale list is a slow list to read at a networking table.
 - Signing in is what unlocks the builder AND Drive. If something feels broken, check that first.
 - Avoid colons in a poll name. Drive cannot use them in a folder name and swaps them for a hyphen, so the archive folder will not read exactly like the poll.
 - The presenter screen is yours, not the projector's. It shows results the moment a question opens. Do not mirror it if you want the room to stay honest.
